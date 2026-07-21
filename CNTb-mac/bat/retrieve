@@ -1,0 +1,165 @@
+#!/usr/bin/perl
+##############################################
+# Reconstruct every graphic output of CNTb using .txt files remaining after RecClean
+#
+# Usage: 		rebuild dirname
+#
+# FS last modif 2013/11/12
+##############################################
+use FindBin;
+$bat = "$FindBin::Bin";
+
+$path = $ARGV[0];
+&file_list("$path/_ASC"); @files = grep(/\.ASC/, @allfiles);						# get list of all .ASC files
+foreach $file (@files) { `mv "$path/_ASC/$file" "$path/$file"`;}				# move them to upper level
+&file_list("$path/_fit_txt"); @fits = grep(/_fit\.txt/, @allfiles);				# get list of all _fit.txt files
+
+# process each ALV file
+foreach $file (@files) {
+	$source_file = "$path/$file";																				
+	chop($lit = `$bat/transform "$path/$file" 1`);										# build CONTIN input file, get avrgd intensity
+	($wf = $file) =~ s/\.ASC//;																	# strip .ASC extension
+	`$bat/correl "$path/$wf" 1`;																# write TMP_CORREL
+	($d = $file) =~ s/\.ASC/_d\.txt/;															# replace .ASC by  _d.txt
+	`cp "$path/_d_txt/$d" "$path/TMP_DISTRIB"`;									# copy saved distribution file to working file
+	($d = $file) =~ s/\.ASC/_wgt\.txt/;														# replace .ASC by  _wgt.txt
+	`cp "$path/_wgt_txt/$d" "$path/TMP_STATWT"`;								# copy saved stat weights file to working file
+	`$bat/getdistribrefit "$path"`;															# retrieve stored distribution values
+	print `$bat/verify "$path"`;																# write TMP_VERIF
+	`$bat/visu "$path/$file" "2" "$lit"`;														# plot trace of intensity
+	`gnuplot -e "set loadpath '$path'" "$bat/plot"`;									# plot input data and results
+	if (@fits) {																							# if fits done
+		&get;																								# get fit parameters
+		&plot;																							# define content of plot depending on fit quality
+		&output_fitplot;																				# make gnuplot file to plot time distribution and its fit
+		`gnuplot "$path/TMP_FITPLOT"`;													# execute gnuplot file
+	}	
+	`$bat/rename "$path/$wf"`;																# rename TMP_*.eps files, delete all other TMP_*
+}
+
+`$bat/clean $path`;																				# sort output files
+`$bat/group $path 1 @fits`;																	# make apercu
+
+############################################
+# get results
+sub get {
+	$source_file = "$path/_fit_txt/".$wf."_fit.txt";
+	$p = 0; @Ampl = @Pos = @R = @Lrg = ();
+	
+	open (IN,"<$source_file") || die "cannot open $source_file";
+	chop($check = <IN>);
+	return if ($check ne "OK") ;
+	while (<IN>) {
+		chop;
+		@tmp = split(/ /);
+		if ($tmp[0] =~ /Max/) { $Max = $tmp[1]; $Rmax = $tmp[2];}
+		if (($tmp[0] =~ /peak/) && !($tmp[2] =~ /%/)) { $p++;}
+		if ($tmp[0] =~ /ampl/) { $Ampl[$p] = $tmp[1];}
+		if ($tmp[0] =~ /pos/) { $Pos[$p] = $tmp[1]; $R[$p] = $tmp[4];}
+		if ($tmp[0] =~ /width/) { $Lrg[$p] = $tmp[1];}	
+	}
+	close (IN);
+}
+########################################
+# write gnuplot file TMP_FITPLOT to plot fitted distribution 
+sub output_fitplot {
+	open(IN,"<$path/TMP_CORREL_INIT") || die "cannot open $path/TMP_CORREL_INIT ! ";
+	chop($tlim = <IN>); ($tmin,$tmax)= split(/,/,$tlim);
+	close(IN);
+	$xmin=10**(int(log($tmin)/log(10))-1);
+	$xmax=10**(int(log($tmax)/log(10))+1);
+	
+	open(OUT,">$path/TMP_FITPLOT");
+	print OUT qq(name="$name"\n);
+	($name = $wf) =~ s/_/ /g;
+	print OUT qq(set title "$name" font "Helvetica,30"\n);
+	print OUT qq(xmin = $xmin\n);
+	print OUT qq(xmax = $xmax\n);
+	print OUT qq(set loadpath "$path"\n);
+	print OUT qq(set termoption enhanced\n);
+	print OUT qq(set sample 512\n);
+	print OUT qq(set nolabel\n);
+	&plotlabels;
+	print OUT qq(set xrange [xmin:xmax]\n);
+	print OUT qq(set x2range [log10(xmin):log10(xmax)]\n);
+	print OUT qq(set yrange [0:*]\n);
+	print OUT qq(set logscale x\n);
+	print OUT qq(set grid\n);
+	print OUT qq(set xtics 10 format "10^{%T}" nomirror font "Helvetica,18"\n);
+	print OUT qq(set nomxtics\n);
+	print OUT qq(set ytics nomirror font "Helvetica,18"\n);
+	print OUT qq(set xlabel "time (s)" font "Helvetica,24"\n);
+	print OUT qq(set ylabel "amplitude" font "Helvetica,24"\n);
+	print OUT qq(set x2label "   "\n);
+	print OUT qq(set y2label "   "\n);
+	print OUT qq(unset grid\n);
+	
+	#	output previous one to .eps file
+	print OUT qq(set terminal postscript eps enhanced\n);
+	print OUT qq(set output "$path/TMP_FIT.eps"\n);
+	print OUT qq(unset grid\n);
+	print OUT qq($plot\n);
+	print OUT qq(set term pop\n);
+}
+########################################
+# produce labels with results for gnuplot
+sub plotlabels {
+	if ($check eq "OK") { 
+		&fct;
+		print OUT qq(set label "{P}_{p} = $Max s : $Rmax nm" at graph 0.05, 0.95\n);
+		for ($i = 1 ; $i <= $#Ampl ; $i++) {
+			print OUT qq(set label "{P}_{$i} = $Pos[$i] s : $R[$i] nm" at graph 0.05, 0.95-$i*0.06\n);
+		}
+	} else {
+		if ($check =~ /NUMBER/) { $color = "#FF00FF";														# magenta
+		} elsif ($check =~ /UNPHYSICAL/) { $color = "#FF0000";											# red
+		} elsif ($check =~ /LARGE ERROR/) { $color = "#FF9999";											# pale red
+		} elsif ($check =~ /SLOW/) {		$color = "#FF9900";												# orange
+		} elsif ($check =~ /BREAK/) { $color = "#0000FF";	}													# blue
+
+		print OUT qq(set label "X" font "Monaco,108" tc rgb "$color" at screen 0.8,0.7\n);			# label with a colored X
+		print OUT qq(set label "$check" font "Helvetica,30" at graph 0.05, 0.95\n);					# display message
+	}
+}
+########################################
+# build the f(x) string with $p peaks of log-normal distributions
+sub fct {
+	$i = 1;
+	$funct[0]="f(x)=";
+	while ($i <= $#Ampl) {
+		$b = log($Pos[$i])/log(10);
+		$funct[0] .= "$Ampl[$i]*exp(-((x-$b)/$Lrg[$i])**2)+";
+		$funct[$i] = "f".$i."(x) = $Ampl[$i]*exp(-((x-$b)/$Lrg[$i])**2)";
+		$i++;
+	}
+	chop $funct[0];
+	print OUT qq($funct[0]\n);
+	if ($#Ampl > 1) {
+		$i=1;
+		while ($i <= $#Ampl) {
+			print OUT qq($funct[$i]\n);
+			$i++;
+		}
+	}
+	print OUT qq(npics=$#Ampl\n);
+	print OUT qq(xfitmin=$xmin\n);
+	print OUT qq(xfitmax=$xmax\n);
+}
+########################################
+# produce plot instructions for gnuplot
+sub plot {
+	$plot=qq(plot "TMP_DISTRIB" using 1:2:3 title "distribution" with errorbars pt 7 lc 1 ps 1.5);
+	if ($check eq "OK") {
+		$plot .= qq(, f(x) axes x2y1 with lines lt 1 lc 0 lw 2);
+		if ($#Ampl > 1) {
+			$i=1;
+			while ($i <= $#Ampl) {
+				$plot.=qq(, f).$i.qq((x) axes x2y1 with lines lc 0 lw 2);
+				$i++;
+			}
+		}
+	}
+}
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

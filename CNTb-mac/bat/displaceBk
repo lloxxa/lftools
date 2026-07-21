@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+##############################################
+#	Displace discarded ASC files from _discarded back to _ASC subdirectories
+#
+#	FS 2013/02/09
+##############################################
+&file_list("$ARGV[0]/_discarded");
+@files = grep(/\.ASC/,@allfiles);
+foreach (@files) { system("mv $ARGV[0]/_discarded/$_  $ARGV[0]/_ASC/$_");}
+#################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

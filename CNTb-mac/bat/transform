@@ -1,0 +1,344 @@
+#!/usr/bin/perl
+###################################################
+#	Read and format the ALV files
+#
+#	Usage: transform.pl $1 [$2]
+#
+#	sub read_file depends on the initial data format!!
+#	HERE initial data are g(2)-1 obtained with ALV-5000 and ALV-7002:
+#			if $2 = "" read only for display
+#			if $2 = 2 read and add 1
+#
+#	FS last modif 2014/02/19
+###################################################
+
+if ($ARGV[0] =~ /\//) {													# batch process
+	@path = split(/\//,$ARGV[0]);
+	$rac = pop(@path);
+	$rac =~ s/\.ASC//;
+	$path = join("/",@path)."/";
+	$source_file = $ARGV[0];
+	$out_file = $path."/".$rac;
+	
+	&read_file;																#	read initial data file
+	&output_correl;															#	output initial data
+	&output_trace;															#	output trace of intensity
+	if ($ARGV[1] ne "p") {
+		&read_INFO_C;														#	read processing info from file INFO_C
+		&output_file;															#	generate CONTIN input file
+	}
+} else {																			# only one file
+	chop($path = `pwd`);
+	$source_file = $path."/".$ARGV[0].".ASC";
+	$out_file = $ARGV[0];
+	$rac = $out_file;
+	
+	&read_file;																#	read initial data file
+	if ( $DUR == 0 ) { $rac="simulation\t".$rac;}
+	if ( @ARGV == 2 ) {														#	initial data are processed
+		&file_list($path);
+		if ( grep(/INFO_C/, @allfiles) ) {
+			print "Use file INFO_C (y [def] OR n) ? ";			# ask for manual input of CONTIN parameters
+			chop($cic = <STDIN>);
+		} else {
+			$cic = "n";
+		}
+		if ($cic eq "n") {
+			&get_info;															#	gather processing info
+		} else {
+			&read_INFO_C;													#	read processing info from file INFO_C			
+		}		
+		&output_correl;														#	output initial data
+		&output_file;															#	generate CONTIN input file
+	} else {																		#	only initial display before processing
+		&output_correl;														#	output initial data
+		&output_trace;														#	output trace of intensity
+	}
+}
+
+$label = "Iav : ".sprintf("%1.2e",$Im)." +/- ".sprintf("%1.2e",$dIm)."\n";
+print $label;
+
+##################################################
+# read ASCII file saved by software on ALV-5000 and ALV-7002
+# extension .ASC added automatically
+# data are t, g(2)(t)-1
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ######  DO NOT ALTER THE ORDER OF THE VARIOUS TESTS !!!   #########
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sub read_file {
+	open(FILE_IN, "<$source_file") || die "cannot open $source_file ! ";		
+	$output = 0;
+	$i = 0;$j = 0;
+	while (<FILE_IN>) {
+		s/\r//g; s/\n//g;													# Windows LF + CR !! 
+		if (/Temp/) {	# temperature
+			@item = split(/ [ ]*/);
+			$TEMP = @item[$#item];}
+
+		if (/Ang/) {	# angle
+			@item = split(/ [ ]*/);
+			$ANG = @item[$#item];}
+
+		if (/Visc/) {	# viscosity
+			@item = split(/ [ ]*/);
+			$VISC = @item[$#item];}
+
+		if (/Refr/) {	# refractive index
+			@item = split(/ [ ]*/);
+			$INDX = @item[$#item];}
+
+		if (/Wave/) {	# wavelength
+			@item = split(/ [ ]*/);
+			$WAVE = @item[$#item];}
+
+		if (/Duration/) {	# duration
+			@item = split(/ [ ]*/);
+			$DUR = @item[$#item];}
+
+		if (/Rate/) {														# mean count rate
+			$output = 2;} 													# end of correlation data block, begin of intensity trace
+			
+		if (/Diode/) {														# diode monitor
+			@item = split(/ [ ]*/);
+			$MON = @item[$#item];
+			$output = 3;} 													# end of intensity data block
+
+		if ($output == 1) {												# inside data block
+			$format="%0.6e";											# format imposed by CONTIN 
+			@item = split(/ [ ]*/);										# @item = {time,g(2)-1)}
+			if ($item[1]) {
+				$t[$i] = &format($item[1]/1000); 				# convert ms to s, then FORTRAN notation
+				if ($ARGV[1] == 2) {$item[2]+=1;}					# back to g(2)(t) ! 
+				$y[$i] = &format($item[2]);
+				$npt=$i;
+			}
+			$i += 1;}															# count nb of rows
+			
+		if ($output == 2) {												#	inside intensity trace data
+			@item = split(/ [ ]*/);
+			if ($item[2]) {
+				$tT[$j]=$item[1];
+				$yT[$j]=$item[2];
+				$j+=1;
+			}
+		}
+		
+		if (/Cor/) {$output = 1;}										# beginning of data block
+	}
+ 	close(FILE_IN);
+ 	
+ 	# calculate average intensity and standard deviation :
+ 	$i = $Im = 0;
+	while ($i <= $#yT) {
+		$Im += $yT[$i];
+		$i++;
+	}
+	$Im = $Im/$i;
+	$i = $dIm = 0;
+	while ($i <= $#yT) {
+		$dIm += ($yT[$i]-$Im)**2;
+		$i++;
+	}
+	$dIm=sqrt($dIm/$i);
+}
+############################################
+# produce the input file for CONTIN
+# mandatory FORTRAN formats !
+# should not depend on initial data file
+# see manual for signification of CONTIN variables
+sub output_file {		
+	open(FILEOUT, ">$out_file") || die "cannot open $out_file ! ";
+	print FILEOUT  $rac,"\n";
+	print FILEOUT  " IFORMY    0    .00\n";
+	print FILEOUT  " (6E13.7)\n";
+	print FILEOUT  " IFORMT    0    .00\n";
+	print FILEOUT  " (6E13.7)\n";
+	print FILEOUT  " IFORMW    0    .00\n";
+	print FILEOUT  " (6E13.7)\n";
+	print FILEOUT  " NINTT     0   -1.00\n";
+	print FILEOUT  " DOUSNQ    0    1.00\n";
+	print FILEOUT  " IQUAD          1.00\n";
+	print FILEOUT  " PRWT      0    1.00\n";
+	print FILEOUT  " PRY       0    1.00\n";
+	print FILEOUT  " IPLRES    1    3.00\n";
+	print FILEOUT  " IPLRES    2    3.00\n";
+	print FILEOUT  " IPRINT    1    0.00\n";
+	print FILEOUT  " IPRINT    2    2.00\n";
+	print FILEOUT  " IPLFIT    1    0.00\n";
+	print FILEOUT  " IPLFIT    2    0.00\n";
+	print FILEOUT  " NONNEG    1    1.00\n";
+	print FILEOUT  " IWT       0    ".$Iwt.".00\n";
+	print FILEOUT  " NQPROG    1    5.00\n";
+	print FILEOUT  " NQPROG    2    5.00\n";
+	print FILEOUT  " GMNMX     1    ".$tmin."\n";
+	print FILEOUT  " GMNMX     2    ".$tmax."\n";
+	print FILEOUT  " RUSER    10    ".$Trd.".00\n";
+	print FILEOUT  " NG        0    ".$Ng.".00\n";
+	print FILEOUT  " NLINF     0    ".$Lb.".00\n";
+	print FILEOUT  " IUSER    10    4.00\n";
+	print FILEOUT  " RUSER    21    1.0\n";
+	print FILEOUT  " RUSER    22   -1.0\n";
+	print FILEOUT  " RUSER    23    0.0\n";
+	print FILEOUT  " RUSER    18         ".$TEMP."\n";
+	print FILEOUT  " RUSER    17         ".$ANG."\n";
+	print FILEOUT  " RUSER    19         ".$VISC."\n";
+	print FILEOUT  " RUSER    15         ".$INDX."\n";
+	print FILEOUT  " RUSER    16         ".$WAVE."\n";
+	print FILEOUT  " RUSER    25         ".$Im."\n";
+	print FILEOUT  " RUSER    26         ".$dIm."\n";	
+	print FILEOUT  " END       0    0.00\n";
+
+#	keep only data points with $tp < t < $td	
+	$i=0;$j=0;
+	while ($i<$npt) {
+		if ($t[$i]>$tp && $t[$i]<$td) {
+			$transpt[$j]=$t[$i];
+			$transpy[$j]=$y[$i];
+			$j++;
+		}
+		$i++;
+	}
+	$npt=$j; # get number of final input data points !
+	print FILEOUT  " NY      "."$npt\n";
+	&group(@transpt);
+	&group(@transpy);
+	close(FILEOUT);
+}
+####################################
+# create file of initial data for further display
+sub output_correl {
+	open(OUT, ">$path/TMP_CORREL_INIT") || die "cannot create $path/TMP_CORREL_INIT ! \n";
+	print OUT qq($t[0],$t[$#t]\n);
+	print OUT "time\ty(t)\n";
+	$i = 0;
+	while ($i < $npt) {
+		print OUT "$t[$i]\t$y[$i]\n";
+		$i++;
+	}
+	close (OUT)
+}
+####################################
+# create file of intensity trace for further display
+sub output_trace {
+	open(OUT, ">$path/TMP_TRACE") || die "cannot create $path/TRACE.TMP ! \n";
+	print OUT "time\tI(t)\n";
+	$i = 0;
+	while ($i < @tT) {
+		print OUT "$tT[$i]$yT[$i]\n";
+		$i++;
+	}
+	close (OUT)
+}
+####################################
+# gather info for initial data processing
+sub get_info {
+	print "first point (sec) ? ";																# first used point
+	chop($tp = <STDIN>);
+	if ($tp=="") {$tp= $t[0];}
+	
+	print "last point (sec) ? ";																	# last used point
+	chop($td = <STDIN>);
+	if ($td=="") {$td= $t[$npt-1];}
+	
+	$format="%0.2e";
+	print "Tau min (sec) ? ";																	# lower limit for relaxation times
+	chop($tmin = <STDIN>);
+	$tmin= &format($tmin);	
+		
+	print "Tau max (sec) ? ";																	# upper limit for relaxation times
+	chop($tmax = <STDIN>);
+	$tmax = &format($tmax);
+	
+	print "Nb of grid points in the distribution ? (default = 100)  ";				# number of grid points in CONTIN analysis
+	chop($Ng = <STDIN>);
+	if ($Ng == "") {$Ng= 100;}
+	
+	print "Data transformation ? 0 = no, 1 = yes (default = 1)  ";					# obvious but what is done ?
+	chop($Trd=<STDIN>);
+	#-------------------------------------------------------------------------------
+	# $Trd is now defined for use as parameter RUSER(10) by CONTIN
+	# default gives most meaningful values
+	# some weirdness can result from non-zero value entered by non-educated user !
+	#-------------------------------------------------------------------------------
+	if ($Trd eq "") {$Trd = "1";}
+	if ($Trd eq "1" && $ARGV[1] == 2) {$Trd="1";}									# initial g(2), input sqrt[g(2)-1]
+	if ($Trd eq "1" && $ARGV[1] != 2) {$Trd="-1";}									# initial g(2)-1, input sqrt[g(2)-1]
+	
+	print "Free baseline ? 0 = no, 1 = yes (default) ";									# obvious
+	chop($Lb = <STDIN>);
+	if ($Lb eq "") {$Lb = "1";}																	# convert default answer for use as parameter NLINF
+
+	print "Weighted residuals ? 0 = no, 1 = yes (default = 1) ";
+	chop($Iwt = <STDIN>);
+	$Iwt = ($Iwt == 0 ? 1 : 5);
+		
+	&output_INFO_C;
+}
+####################################
+# read info for batch process
+sub read_INFO_C {
+	$format="%0.2e";
+	open(IN,"<$path/INFO_C") || die "cannot open $path/INFO_C ! \n";
+	chop($tp=<IN>);
+	chop($td=<IN>);
+	chop($tmin=<IN>);
+	$tmin= &format($tmin);	
+	chop($tmax=<IN>);
+	$tmax= &format($tmax);
+	chop($Ng=<IN>);
+	chop($Trd=<IN>);
+	chop($Lb=<IN>);
+	chop($Iwt=<IN>);
+	if ($Iwt eq "") { $Iwt="5";}
+	close (IN);	
+}
+####################################
+# output info for batch use
+sub output_INFO_C {
+	open(OUT, ">$path/INFO_C") || die "cannot create $path/TMP_INFO_C\n";
+	print OUT $tp,"\n";
+	print OUT $td,"\n";
+	print OUT $tmin,"\n";
+	print OUT $tmax,"\n";
+	print OUT $Ng,"\n";
+	print OUT $Trd,"\n";
+	print OUT $Lb,"\n";
+	print OUT $Iwt,"\n";
+	close(OUT);
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form=sprintf $format,abs($f);
+	$form=~s/\.//;
+	$form=~s/e/E/;
+	if ($f>=0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop($interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+####################################
+# group & output data in rows of 6 separated by space
+sub group {
+	$j=0;
+	while ($j<$npt) {
+		$k=1;
+		$essai=" ".$_[$j];
+		while ($j+$k<$npt && $k<6) {
+			$essai=$essai." ".$_[$j+$k];
+			$k+=1;
+		}
+		print FILEOUT  $essai."\n";
+		$j+=6;
+	}
+}
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}
+

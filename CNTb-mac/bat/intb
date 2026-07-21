@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+# Batch checking of ALV files
+# Trace of intensity and intensity correlation function for each ASC file are grouped
+# Check criteria for data quality defined in INFO_P and displace outliers in _discarded directory
+#
+# FS last modif 2013/12/11
+
+use FindBin;
+$bat = "$FindBin::Bin";
+
+print `$bat/intbp $ARGV[0]`;										# plot trace and ICF for each ASC file, mark outliers
+`$bat/clean $ARGV[0] "p"`;										# sort output plot files
+`$bat/group $ARGV[0] "p"`;										# make apercu
+`$bat/displaceASC $ARGV[0]`;									# displace outliers
+
+# delete .eps files and _eps directories
+&file_list("$ARGV[0]"); @eps = grep(/_eps/, @allfiles);
+foreach $eps (@eps) {
+	system("rm $ARGV[0]/$eps/*.*");
+	system("rmdir $ARGV[0]/$eps");
+}
+
+#################################
+# get all files in directory
+sub file_list { local($dir) = @_ ; opendir(DIR, $dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}
+	

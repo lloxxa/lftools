@@ -1,0 +1,107 @@
+#!/usr/bin/perl
+####################################################
+#	Extract experimental data from CONTIN input file and store them as 
+#	2 columns t, y(t) in the temporary files "CORREL_INIT.TMP" or "CORREL.TMP" 
+#
+#	original version Rolf Klücker 13/10/95
+#   last modif FS 2013/05/30
+####################################################
+
+if ($ARGV[0] =~ /\//) {						# batch process
+	@path=split(/\//,$ARGV[0]);
+	pop(@path);
+	$path=join("/",@path);
+} else {												# only one file
+	chop($path = `pwd`);
+}
+
+&read_input_file;								# read CONTIN input file
+if (@ARGV[1] == 0) {							# output non-preformed original data
+	&output_init;
+} else {												# output (optionally preformed) data which CONTIN will fit
+	&output_preformed;
+}
+
+####################################################
+# read CONTIN input file
+sub read_input_file {
+	open(DATA, "<$ARGV[0]") || die "cannot open $ARGV[0] ! \n";
+	$j = 0;
+	$i = 0;
+	$x = 0;
+	$points = 0;
+	while (<DATA>) {
+		s/ [ ]*//;									# delete leading spaces !
+		s/\r//;										# delete CR !
+		s/\n//;										# delete LF !
+
+		if (/RUSER    10/) {						# preforming of data to be done before CONTIN proceeds
+			@temp=split(/ [ ]*/);
+			$Td = $temp[2];
+		}
+				
+		if ($points != 0) {							# after start of data block
+			if ($x == 0) {							# still in time data block
+				($x[$i+1],$x[$i+2],$x[$i+3],$x[$i+4],$x[$i+5],$x[$i+6]) = split(/ [ ]*/);
+				$i += 6;
+				if ($i >= $points) {				# end of time data
+					$x = 1;
+					$i = 0;
+				}
+			} else {									# x = 1, still in data block, after time data block
+	    		($y[$i+1],$y[$i+2],$y[$i+3],$y[$i+4],$y[$i+5],$y[$i+6]) = split(/ [ ]*/);
+	    		$i += 6;
+	    	}
+		}
+		
+		if (/NY/) {									# get nb of data points, signal starting data block
+			@temp = split(/ [ ]*/);
+			$points = $temp[1]; 				# becomes non-zero
+		}
+	}
+	close (DATA);
+}
+####################################################
+# output non-preformed original data
+sub output_init {
+	open(OUT, ">$path/TMP_CORREL_INIT") || die "cannot create $path/TMP_CORREL_INIT ! \n";
+	print OUT qq($x[1],$x[$#x]\n);
+	print OUT "t(s)	y(t)\n";
+	print qq($x[1],$x[$#x]\n);
+	print  "t(s)	y(t)\n";
+	$i = 0;
+	while ($i++ < $points) {
+		print OUT "@x[$i]\t@y[$i]\n";
+	}
+	close (OUT);
+}
+####################################################
+# output (optionally preformed) data which CONTIN will fit &
+# which might remain same as original data 
+# depending on RUSER(10) value (i.e. $Td)
+# negative values dealt with the same way as CONTIN does
+sub output_preformed {
+	open(OUT, ">$path/TMP_CORREL") || die "cannot create $path/TMP_CORREL ! \n";
+	print OUT "$x[1],$x[$points]\n";
+	print OUT "t(s)	y(t)\n";
+	$i = 0;
+	while ($i++ < $points) {
+		if ($Td == -1) {
+			if ($y[$i] < 0) {						# initial data will be transformed
+				$y[$i] = -sqrt(-$y[$i]);
+			} else {
+				$y[$i] = sqrt($y[$i]);
+			}
+		} elsif ($Td == 1) {						# initial data will be transformed too
+			$y[$i] = $y[$i] - 1;
+			if ($y[$i] < 0) {
+				$y[$i] = -sqrt(-$y[$i]);
+			} else {
+				$y[$i] = sqrt($y[$i]);
+			}
+		}
+		print OUT "$x[$i]\t$y[$i]\n";
+	}
+	close (OUT);
+}
+

@@ -1,0 +1,51 @@
+#!/usr/bin/perl
+##############################################
+#	Discard unwanted files based on remaining .ASC files in _ASC subdirectory
+##########################################
+# WARNING : DO NOT RUN ON ORIGINAL DATA  #
+# WORK ON A COPY OF INITIAL DIRECTORY    # 
+# FILES WILL BE DELETED !!!              #
+##########################################
+#
+#	FS 2013/06/11
+###############################################
+
+file_list("$ARGV[0]");
+# check existence of _ASC directory
+unless (grep (/_ASC/, @allfiles)) { print "1"; exit;}
+# define suffixes of subdirectories to scan
+@dir = grep(/_p_eps/ || /_ylog_eps/ || /_TrI_eps/ || /_FIT_eps/ || /_fit_txt/ || /_RES_eps/ || /_RD_eps/ || /_d_txt/,@allfiles);
+
+file_list("$ARGV[0]/_ASC");
+@files = sort grep (/\.ASC/, @allfiles);
+unless (@files) { print "1"; exit;}
+
+foreach (@files) { s/\.ASC//;}
+&remove_waste;
+#print "0";
+
+#################################
+# remove all files not matching base name for kept files
+sub remove_waste {
+	foreach $suff (@dir) {	
+		$path=$ARGV[0]."/".$suff;
+		($pop = $suff) =~ s/^_/ /;
+		$pop =~ s/_/\./;
+		$pop =~ s/ /_/;
+		opendir(DIR,$path);
+		@all_files = sort grep (!/^\./, readdir(DIR));
+		closedir(DIR);
+		foreach $totest (@all_files) {
+			$keep = 0;
+			foreach $ref (@files) {
+				($test = $totest) =~ s/$ref//;
+				$test =~ s/$pop//;
+				if ($test eq "") { $keep = 1; last;}
+			}
+			if ($keep != 1) { print "$path/$totest","\n"; system("rm $path/$totest");}
+		}
+	}
+}
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

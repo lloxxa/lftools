@@ -1,0 +1,70 @@
+#!/usr/bin/perl
+##################################################
+# Make gnuplot file to display :
+#							trace of the intensity
+#							initial data TMP_CORREL_INIT
+#							display skipped for batch process
+#
+#	Usage : visu  dirname | filename
+#
+# 	FS last modif 2013/06/05
+##################################################
+use FindBin;	
+$bat = "$FindBin::Bin";																						# path to bat library
+
+if ( $ARGV[0] =~/\// ) {
+	@path = split(/\//,$ARGV[0]);
+	$name = pop(@path);
+	$path = join("/",@path);
+} else { 
+	$name = $ARGV[0];
+	$path = '.';
+}
+
+&make_visu;
+`gnuplot "$path/TMP_visu"`;
+`rm "$path/TMP_visu"`;
+##################################################
+# make gnuplot file to plot intensity trace and initial data
+sub make_visu {
+	$name =~ s/\.ASC//; $name =~ s/_/ /g;
+	open (OUT, ">$path/TMP_visu"); 
+	print OUT qq(set termoption enhanced\n);
+	print OUT qq(set sample 512\n);
+	print OUT qq(set title "$name" font "Helvetica,30"\n);
+	
+	#	trace intensity    (screen output only if single file)
+	print OUT qq(set xlabel "t (s)" font "Helvetica,24"\n);
+	print OUT qq(set xtics font "Helvetica,18"\n);
+	print OUT qq(set ylabel "count rate (kHz)" font "Helvetica,24" offset -3,0\n);
+	print OUT qq(set ytics font "Helvetica,18"\n);
+	print OUT qq(plot "$path/TMP_TRACE" using 1:2 title "$ARGV[2]" with lines lw 1.5; pause mouse any\n) if ($ARGV[1] == 0);
+	
+	#	output previous one to file .eps only if real data (not simulation)
+	print OUT qq(set terminal postscript eps enhanced\n);
+	print OUT qq(set output "$path/TMP_TrI.eps"\n);
+	print OUT qq(plot "$path/TMP_TRACE" using 1:2 title "$ARGV[2]" with lines lw 1.5\n) if ($ARGV[1] != 1);
+	print OUT qq(set term pop\n);
+	
+	#	initial data	(screen output only if single file)
+	print OUT qq(set logscale x\n);											
+	print OUT qq(set xtics 10 format "10^{%T}" nomirror offset 0,-.75\n);
+	print OUT qq(set xrange [1e-8:1e3]\n);
+	print OUT qq(set xlabel "t (s)" font "Helvetica,24" offset 0,-1\n);
+	print OUT qq(set grid\n);
+	print OUT qq(set logscale y\n);
+	print OUT qq(set yrange [1e-6:1e1]\n);
+	print OUT qq(set ytics 10 format "10^{%T}" font "Helvetica,18"\n);
+	print OUT qq(set ylabel "g^{(2)}(t)-1" font "Helvetica,24" offset -3,0\n);
+	if (($ARGV[1] == 0) || ($ARGV[1] == 1)) {
+	print OUT qq(plot "$path/TMP_CORREL_INIT" using 1:2 title "exp." with points pt 7 lc 1 ps 1.5; pause mouse any\n);}
+	
+	#	output previous one to .eps file if only data plot without CONTIN processing	
+	return if ($ARGV[1] !=3);
+	print OUT qq(set terminal postscript eps enhanced\n);
+	print OUT qq(set output "$path/TMP_p.eps"\n);
+	print OUT qq(set nogrid\n);
+	print OUT qq(plot "$path/TMP_CORREL_INIT" using 1:2 title "exp" with points pt 7 lc 3 ps 1\n);
+	print OUT qq(set term pop\n);
+	close(OUT);
+}

@@ -1,0 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May  6 15:00:47 2015
+
+@author: aljosha
+
+Fits the short-q approximation of the Rouse prediction for the dynamic form factor
+"""
+
+def rouse-short-q(t, D, q):
+    return 

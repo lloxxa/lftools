@@ -1,0 +1,442 @@
+#!/usr/bin/perl
+############################################
+#	Batch analysis of a set of files
+#	Perform stats on the fit results for the peaks of the distribution
+#	Write a .txt file with the stats
+#
+#	FS  last modif 2013/06/21
+############################################
+
+# get file names ending with '_fit.txt' and not containing 'stat'
+&file_list("$ARGV[0]");
+@avrg = sort grep (/_fit\.txt/ && /avrg/, @allfiles);
+if (!@avrg) { exit;}
+@files = sort grep (/_fit\.txt/ && !/stat/ && !/avrg/, @allfiles);
+@nfiles = (@dfiles = @files);
+
+&exp_par;																																# get experimental parameters in $avrg[0]
+
+# read values to calculate averages
+$nf = @files; $np = 0;
+if ($nf == 1) { exit;}
+$k = 1;
+while (@files) {
+	$curr = shift(@files);
+	$p = 0; $i = 1;
+	open (IN,"<$ARGV[0]/$curr") || die "cannot open $ARGV[0]/$curr";
+	chop($check = <IN>);
+	if ($check ne "OK") {
+		close(IN);
+		$curr =~ s/_fit\.txt//;
+		if ($check =~ /NUMBER/) { $N .= $curr." ; ";}
+		if ($check =~ /BREAK/) { $B .= $curr." ; ";}
+		if ($check =~ /SLOW/) { $S .= $curr." ; ";}	
+		if ($check =~ /LARGE/) { $L .= $curr." ; ";}
+		if ($check =~ /UNPHYSICAL/) { $U .= $curr." ; ";}
+		next;	
+	} 		
+	while (<IN>) {
+		chop;
+		@res = split(/ /);
+		if ($res[0] =~ /Max/) { $Max += $res[1]; $Rmax += $res[2];}
+		if ($res[0] =~ /peak/ && !/%/) { $p++; $np++;}
+		if ($res[0] =~ /ampl/) { $Ampl[$p] += $res[1];}
+		if ($res[0] =~ /pos/) { $Pos[$p] += $res[1]; $R[$p] += $res[4];}
+		if ($res[0] =~ /width/) { $Lrg[$p] += $res[1];}	
+		if ($res[0] =~ /area/) { $A[$p] += $res[1];}
+		if ($res[2] =~ /%/) { $Ar[$i] += $res[3]; $i++;}
+		if ($res[0] =~ /Iav/) { $Im += $res[1];}
+		if ($res[0] =~ /dIm/) { $dIm += $res[1];}
+		if ($res[0] =~ /g0/) { $g0 += $res[1];}
+		if ($res[0] =~ /asymptote/) { $asymp += $res[1];}
+	}
+	close (IN);
+	$Npr[$k] = $p;																													# keep trace of number of peaks
+	$k++;
+}
+$nfe = $k-1;
+if ($nfe <= 1) { exit;}
+&average;
+
+# check consistency of peaks numbers
+for ($k =1; $k <= $nfe; $k++) {
+	if ($Npr[$k] != $Npr[1]) { $inconsistent = 1;}
+}
+
+# read values to calculate standard deviations
+$np = 0;
+while (@dfiles) {
+	$curr=shift(@dfiles);
+	$p = 0; $i = 1;
+	open (IN,"<$ARGV[0]/$curr") || die "cannot open $ARGV[0]/$curr";
+	chop($check = <IN>);
+	if ($check ne "OK") { close (IN); next;}
+	while (<IN>) {
+		chop;
+		@res = split(/ /);
+		if ($res[0] =~ /Max/) {	$dMax += ($res[1]-$Max)**2; $dRmax += ($res[2]-$Rmax)**2;}
+		if ($res[0] =~ /peak/ && !/%/) { $p++; $np++;}
+		if ($res[0] =~ /ampl/) { $dAmpl[$p] += ($res[1]-$Ampl[$p])**2;}
+		if ($res[0] =~ /pos/) { $dPos[$p] += ($res[1]-$Pos[$p])**2; $dR[$p] += ($res[4]-$R[$p])**2;}
+		if ($res[0] =~ /width/) { $dLrg[$p] += ($res[1]-$Lrg[$p])**2;}		
+		if ($res[0] =~ /area/) { $dA[$p] += ($res[1]-$A[$p])**2;}
+		if ($res[2]	=~ /%/) { $dAr[$i] += ($res[3]-$Ar[$i])**2; $i++;}
+		if ($res[0] =~ /Iav/) { $delIm += ($res[1]-$Im)**2;}
+		if ($res[0] =~ /dIm/) { $deldIm += ($res[1]-$dIm)**2;}
+		if ($res[0] =~ /g0/) { $delg0 += ($res[1]-$g0)**2;}
+		if ($res[0] =~ /asymptote/) { $delasymp += ($res[1]-$asymp)**2;}
+	}
+	close (IN);
+}
+print $nfe,"\n";
+&deviation;
+&get_avrg;
+&print_stats;
+&output_stats;
+&check_warning;
+
+############################################
+# read experimental parameters from average file
+sub exp_par {
+	($source = $avrg[0]) =~ s/_fit\.txt/\.ASC/;
+	($folder = $ARGV[0]) =~ s/_fit_txt//;
+	open(IN, "<$folder/$source") || open(IN, "<$folder/_ASC/$source") || die "cannot open $source ! ";		
+	$output = $i = $j = 0;
+	@t = @y = @tT = @yT =();
+	while (<IN>) {
+		s/\r//g; s/\n//g;																	# Windows LF + CR !! 
+		if (/Temp/) {	# temperature
+			@item = split(/ [ ]*/);
+			$TEMP = @item[$#item];}
+
+		if (/Ang/) {	# angle
+			@item = split(/ [ ]*/);
+			$ANG = @item[$#item];}
+
+		if (/Visc/) {	# viscosity
+			@item = split(/ [ ]*/);
+			$VISC = @item[$#item];}
+
+		if (/Refr/) {	# refractive index
+			@item = split(/ [ ]*/);
+			$INDX = @item[$#item];}
+
+		if (/Wave/) {	# wavelength
+			@item = split(/ [ ]*/);
+			$WAVE = @item[$#item];}
+	}
+ 	close(IN);	
+}
+############################################
+# calculate average for every quantity
+sub average {
+	$np=$np/$nfe;
+	$Max = $Max/$nfe;
+	$Rmax = $Rmax/$nfe;
+	$Im = $Im/$nfe;
+	$dIm = $dIm/$nfe;
+	$g0 = $g0/$nfe;
+	$asymp = $asymp/$nfe;
+	$i=1;
+	while ($i <= $np) {
+		$Ampl[$i] = $Ampl[$i]/$nfe;
+		$Pos[$i] = $Pos[$i]/$nfe;
+		$R[$i] = $R[$i]/$nfe;
+		$Lrg[$i] = $Lrg[$i]/$nfe;
+		$A[$i] = $A[$i]/$nfe;
+		$Ar[$i] = $Ar[$i]/$nfe;
+		$i++;
+	}
+}
+############################################
+# calculate standard deviation for every quantity
+sub deviation {
+	$np = $np/$nfe;
+	$dMax = sqrt($dMax/($nfe-1));
+	$dRmax = sqrt($dRmax/($nfe-1));
+	$delIm = sqrt($delIm/($nfe-1));
+	$deldIm = sqrt($deldIm/($nfe-1));
+	$delg0 = sqrt($delg0/($nfe-1));
+	$delasymp = sqrt($delasymp/($nfe-1));
+	$i=1;
+	while ($i <= $np) {		
+		$dAmpl[$i] = sqrt($dAmpl[$i]/($nfe-1));
+		$dPos[$i] = sqrt($dPos[$i]/($nfe-1));
+		$dR[$i] = sqrt($dR[$i]/($nfe-1));
+		$dLrg[$i] = sqrt($dLrg[$i]/($nfe-1));
+		$dA[$i] = sqrt($dA[$i]/($nfe-1));
+		$dAr[$i] = sqrt($dAr[$i]/($nfe-1));
+		$i++;
+	}
+}
+############################################
+# print fit stats on screen
+sub print_stats {
+	$i=0;
+	print "\n\n",'$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$',"\n";
+	print "Batch analysis of $nf files in $ARGV[0]\n\n";
+	if (!$inconsistent) { print "Number of peaks : ",$Npr[1],"\n\n";}
+	if ($B) { 
+		@count = split(/;/,$B); $countB = @count-1;
+		print "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: BROKEN fit for $countB file(s)\n";
+		print "         $B\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($N) { 
+		@count = split(/;/,$N); $countN = @count-1;
+		print "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: required NUMBER of peaks was wrong for $countN file(s)\n";
+		print "         $N\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($S) { 
+		@count = split(/;/,$S); $countS = @count-1;
+		print "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: fit converged too SLOWLY for $countS file(s)\n";
+		print "         $S\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($L) { 
+		@count = split(/;/,$L); $countL = @count-1;
+		print "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: too LARGE errors in fit for $countL file(s)\n";
+		print "         $L\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($U) { 
+		@count = split(/;/,$U); $countU = @count-1;
+		print "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: UNPHYSICAL fit parameter values for $countU file(s)\n";
+		print "         $U\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	$rf = $nf -$countB - $countN - $countS - $countL - $countU;
+	print "_________________________________________________\n";	
+	print " Average values on the set of $rf remaining files\n";
+	print "-------------------------------------------------\n";
+	print "Maximum position [s] : ",sprintf("%1.2e",$Max)," +/- ",sprintf("%1.2e",$dMax),"\n";
+	print "Maximum position [nm] : ",sprintf("%1.2e",$Rmax)," +/- ",sprintf("%1.2e",$dRmax),"\n";
+	if (!$inconsistent) {
+		while ($i++ < $Npr[1]) {
+			print "\nPeak $i\n";
+			print "Amplitude : ",sprintf("%1.2e",$Ampl[$i])," +/- ",sprintf("%1.2e",$dAmpl[$i]),"\n";
+			print "Position [s] : ",sprintf("%1.2e",$Pos[$i])," +/- ",sprintf("%1.2e",$dPos[$i]),"\n";
+			print "Position [nm] : ",sprintf("%1.2e",$R[$i])," +/- ",sprintf("%1.2e",$dR[$i]),"\n";
+			print "Width : ",sprintf("%1.2e",$Lrg[$i])," +/- ",sprintf("%1.2e",$dLrg[$i]),"\n";
+			print "Relative area : ",sprintf("%1.2e",$Ar[$i])," +/- ",sprintf("%1.2e",$dAr[$i]),"\n";
+		}
+	} else {
+		print "\n\n\n\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print "WARNING: Inconsistent number of peaks between files !!\n";
+		print "         Statistics on peak values skipped !!\n";		
+		print "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n\n\n";
+	}
+	print "\n";
+	print "Intensity : ",sprintf("%1.2e",$Im)," +/- ",sprintf("%1.2e",$delIm),"\n";
+	print "Intensity fluctuations : ",sprintf("%1.2e",$dIm)," +/- ",sprintf("%1.2e",$deldIm),"\n";
+	print "g(0) : ",sprintf("%1.3f",$g0)," +/- ",sprintf("%1.3f",$delg0),"\n";
+	print "Asympt. : ",sprintf("%1.2e",$asymp)," +/- ",sprintf("%1.2e",$delasymp),"\n";
+	
+	$i=0;
+	print "_______________________________\n";
+	print " Average correlation function\n";
+	print "-------------------------------\n";
+	if ($check eq "OK") {
+		while ($i++ < $np) {
+			print "Peak $i\n";
+			print "Amplitude : ",sprintf("%1.2e",$Ampl_m[$i])," +/- ",sprintf("%1.2e",$dAmpl_m[$i]),"\n";
+			print "Position [s] : ",sprintf("%1.2e",$Pos_m[$i])," +/- ",sprintf("%1.2e",$dPos_m[$i]),"\n";
+			print "Position [nm] : ",sprintf("%1.2e",$R_m[$i])," +/- ",sprintf("%1.2e",$dR_m[$i]),"\n";
+			print "Width : ",sprintf("%1.2e",$Lrg_m[$i])," +/- ",sprintf("%1.2e",$dLrg_m[$i]),"\n";
+			print "Relative area : ",sprintf("%1.2e",$Ar_m[$i])," +/- ",sprintf("%1.2e",$dAr_m[$i]),"\n";
+		}
+		print "g(0) : ",sprintf("%1.3f",$g0_m),"\n";
+		print "asympt. : ",sprintf("%1.2e",$asymp_m)," +/- ",sprintf("%1.2e",$dasymp_m),"\n";	
+	} else {
+		print $check,"\n";
+	}
+}
+############################################
+# write fit stats to "stat_fit.txt"
+sub output_stats {
+	$ARGV[0] =~ s/\/_fit_txt//;
+	&read_INFO_C;
+	&read_INFO_F;
+	open (OUT, ">$ARGV[0].txt") || die "cannot open $ARGV[0].txt\n";
+	
+	# keep a trace of what was done on which files set
+	print OUT "Batch analysis of $nf files in $ARGV[0]\n";	
+	$i=0;
+	while ($i <= $#nfiles) { $nfiles[$i] =~ s/_fit\.txt/ \; /; print OUT "$nfiles[$i]";$i++;}
+	print OUT "\n_________________________________\n";
+	print OUT " Experimental parameters\n";
+	print OUT "---------------------------------\n";
+	print OUT "Angle (deg): ", sprintf("%1.1f",$ANG),"\n";
+	print OUT "Wavelength (nm): ", sprintf("%1.1f",$WAVE),"\n";
+	print OUT "Refraction index: ",sprintf("%1.3f",$INDX),"\n";
+	print OUT "Viscosity (cP): ", sprintf("%1.4f",$VISC),"\n";
+	print OUT "Temperature (K): ", sprintf("%1.2f",$TEMP),"\n";	
+	print OUT "\n_________________________________\n";
+	print OUT " Parameters for CONTIN and fit\n";
+	print OUT "---------------------------------\n";
+	print OUT sprintf("%1.3e",$tp)," < time [s] < ",sprintf("%1.3e",$td),"\n";
+	print OUT sprintf("%1.3e",$tmin)," < Tau [s] < ",sprintf("%1.3e",$tmax),"\n";
+	if ($Lb) {print OUT "Free baseline\n";} else {print OUT "Fixed baseline\n";}
+	if ($Iwt == 1) {print OUT "Unweighted residuals\n";} else {print OUT "Weighted residuals\n";}
+	print OUT "Number of grid points : ",$Ng,"\n";
+	if ($p >= 1) {
+		$pic = ($p == 1 ? "peak" : "peaks");
+		print OUT sprintf("%1.3e",10**$min)," < $p $pic < ",sprintf("%1.3e",10**$max),"\n";
+	} else {
+		$crit = ($p == 0 ? 1 : 100*$p);
+		print OUT sprintf("%1.3e",10**$min)," < automatic search for peaks < ",sprintf("%1.3e",10**$max),"\n";
+		print OUT "Peaks with area smaller than about $crit % of major peak area are discarded\n";		
+	}
+	if ($B) { 
+		print OUT "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: BROKEN fit for $countB file(s)\n";
+		print OUT "         $B\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($N) { 
+		print OUT "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: required NUMBER of peaks was wrong for $countN file(s)\n";
+		print OUT "         $N\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($S) { 
+		print OUT "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: fit converged too SLOWLY for $countS file(s)\n";
+		print OUT "         $S\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($L) { 
+		print OUT "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: too LARGE errors in fit for $countL file(s)\n";
+		print OUT "         $L\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	if ($U) { 
+		print OUT "\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: UNPHYSICAL fit parameter values for $countU file(s)\n";
+		print OUT "         $U\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n";
+	}
+	# output average and standard deviation of fit values for the set of correlation functions
+	print OUT "_________________________________________________\n";	
+	print OUT " Average values on the set of $rf remaining files\n";
+	print OUT "-------------------------------------------------";
+	if ($inconsistent) {
+		print OUT "\n\n\n\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT "WARNING: Inconsistent number of peaks between files !!\n";
+		print OUT "         Statistics on peak values skipped !!\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n\n\n\n";
+		print OUT "Maximum position [s] : ",sprintf("%1.2e",$Max)," +/- ",sprintf("%1.2e",$dMax),"\n";
+		print OUT "Maximum position [nm] : ",sprintf("%1.2e",$Rmax)," +/- ",sprintf("%1.2e",$dRmax),"\n";
+	} else {
+		$i=0;	
+		while ($i++ < $Npr[1]) {
+			print OUT "\nPeak $i\n";
+			print OUT "Amplitude : ",sprintf("%1.2e",$Ampl[$i])," +/- ",sprintf("%1.2e",$dAmpl[$i]),"\n";
+			print OUT "Position [s] : ",sprintf("%1.2e",$Pos[$i])," +/- ",sprintf("%1.2e",$dPos[$i]),"\n";
+			print OUT "Position [nm] : ",sprintf("%1.2e",$R[$i])," +/- ",sprintf("%1.2e",$dR[$i]),"\n";
+			print OUT "Width : ",sprintf("%1.2e",$Lrg[$i])," +/- ",sprintf("%1.2e",$dLrg[$i]),"\n";
+			print OUT "Relative area : ",sprintf("%1.2e",$Ar[$i])," +/- ",sprintf("%1.2e",$dAr[$i]),"\n";
+		}
+	}
+	print OUT "\nIntensity : ",sprintf("%1.2e",$Im)," +/- ",sprintf("%1.2e",$delIm),"\n";
+	print OUT "Intensity fluctuations : ",sprintf("%1.2e",$dIm)," +/- ",sprintf("%1.2e",$deldIm),"\n";
+	print OUT "g(0) : ",sprintf("%1.3f",$g0)," +/- ",sprintf("%1.3f",$delg0),"\n";
+	print OUT "Asymptote : ",sprintf("%1.2e",$asymp)," +/- ",sprintf("%1.2e",$delasymp),"\n";
+	
+	# output fit values for averaged correlation function
+	$i=0;
+	print OUT "_________________________________\n";
+	print OUT " Average correlation function\n";
+	print OUT "---------------------------------\n";
+	if ($check eq "OK") {
+		while ($i++ < $np) {
+			print OUT "Peak $i\n";
+			print OUT "Amplitude : ",sprintf("%1.2e",$Ampl_m[$i])," +/- ",sprintf("%1.2e",$dAmpl_m[$i]),"\n";
+			print OUT "Position [s] : ",sprintf("%1.2e",$Pos_m[$i])," +/- ",sprintf("%1.2e",$dPos_m[$i]),"\n";
+			print OUT "Position [nm] : ",sprintf("%1.2e",$R_m[$i])," +/- ",sprintf("%1.2e",$dR_m[$i]),"\n";
+			print OUT "Width : ",sprintf("%1.2e",$Lrg_m[$i])," +/- ",sprintf("%1.2e",$dLrg_m[$i]),"\n";
+			print OUT "Relative area : ",sprintf("%1.2e",$Ar_m[$i])," +/- ",sprintf("%1.2e",$dAr_m[$i]),"\n";
+		}
+		print OUT "\ng(0) : ",sprintf("%1.3f",$g0_m),"\n";
+		print OUT "Asymptote : ",sprintf("%1.2e",$asymp_m)," +/- ",sprintf("%1.2e",$dasymp_m),"\n";
+	} else {
+		print OUT $check,"\n";
+	}
+	close (OUT);
+}
+############################################
+# check for possible warning about differences in experimental parameters
+sub check_warning {
+	&file_list("$ARGV[0]");
+	@warn = sort grep (/warning/, @allfiles);
+	if (@warn) {
+		open (OUT, ">>$ARGV[0].txt") || die "cannot open $ARGV[0].txt\n";
+		open (IN,"<$ARGV[0]/warning") || die "cannot open $ARGV[0]/warning\n";
+		print OUT "\n\nwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		print OUT " WARNING: Some parameters have deviant values !!\n";
+		print OUT "          Check data files listed below !!\n";		
+		print OUT "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww\n";
+		while (<IN>) {
+			print OUT;
+		}
+		close (IN);
+		close (OUT);
+	}
+}
+############################################
+# get & ouput fit values for averaged correlation function
+sub get_avrg {
+	$p = 0; $i = 1; $np = 0;
+	open (IN,"<$ARGV[0]/$avrg[0]") || die "cannot open $ARGV[0]/$avrg[0]";
+	chop($check = <IN>);
+	if ($check ne "OK") { close(IN); return;}
+	while (<IN>) {
+		chop;
+		@res = split(/ /);
+		if ($res[0] =~ /Max/) { $Max_m = $res[1]; $Rmax_m = $res[2];}
+		if ($res[0] =~ /peak/ && !/%/) { $p++; $np++;}
+		if ($res[0] =~ /ampl/) { $Ampl_m[$p] = $res[1]; $dAmpl_m[$p] = $res[3];}
+		if ($res[0] =~ /pos/) { $Pos_m[$p] = $res[1]; $dPos_m[$p] = $res[3]; $R_m[$p] = $res[4]; $dR_m[$p] = $res[6];}
+		if ($res[0] =~ /width/) { $Lrg_m[$p] = $res[1]; $dLrg_m[$p] = $res[3];}	
+		if ($res[0] =~ /area/) { $A_m[$p] = $res[1]; $dA_m[$p] = $res[3];}
+		if ($res[2]	=~ /%/) { $Ar_m[$i] = $res[3]; $dAr_m[$i] = $res[5]; $i++;}
+		if ($res[0] =~ /Iav/) { $Im_m = $res[1];}
+		if ($res[0] =~ /dIm/) { $dIm_m = $res[1];}
+		if ($res[0] =~ /g0/) { $g0_m = $res[1];}
+		if ($res[0] =~ /asymptote/) { $asymp_m = $res[1]; $dasymp_m = $res[3];}
+	}
+	close (IN);	
+}
+############################################
+# read info used for batch process
+sub read_INFO_C {
+	open (IN,"<$ARGV[0]/INFO_C") || die "cannot open $ARGV[0]/INFO_C";
+	chop($tp = <IN>);
+	chop($td = <IN>);
+	chop($tmin = <IN>);
+	chop($tmax = <IN>);
+	chop($Ng = <IN>);
+	chop($Trd = <IN>);
+	chop($Lb = <IN>);
+	chop($Iwt = <IN>);
+	close (IN);	
+}
+############################################
+# read the initial parameters of the fit from INFO_F
+sub read_INFO_F {
+	open (IN,"<$ARGV[0]/INFO_F") || die "cannot open $ARGV[0]/INFO_F";
+	chop($p = <IN>);
+	chop($min = <IN>);
+	chop($max = <IN>);
+	close (IN);			
+}
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

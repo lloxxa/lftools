@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+###############################
+#	Create useful shell scripts in working directory
+#
+#	FS last modif 2014/02/22
+###############################
+use FindBin;
+$bat = "$FindBin::Bin";
+($cnt = $bat) =~ s/\/bat//;
+
+&make_o;	# make a shell script "o" to loop on CONTIN procedure
+&make_f;	# make a shell script "f" to launch a fit on CONTIN distribution peaks
+&make_r;	# make a shell script "r" to rename temporary files TMP_*.eps to $1_*.eps
+&make_z;	# make a shell script "z" to remove temporary files at the end
+
+####################
+# make a shell script "o" to loop on CONTIN procedure
+sub make_o {
+	open(OUT, ">o") || die "cannot create o ! ";
+	print OUT "vim $ARGV[0]\n";
+	if (@ARGV[1] > 2) {
+		print OUT "$cnt/cnt $ARGV[0] 4\n";  # CONTIN compliant simulation exists already !
+	} else {
+		print OUT "$cnt/cnt $ARGV[0] 0\n";  # CONTIN compliant file exists already !
+	}	
+	close(OUT);
+	
+	chmod 0755, "o";
+}
+####################
+# make a shell script "f" to launch a fit on CONTIN distribution peaks
+sub make_f {
+	open(OUT, ">f") || die "cannot create f ! ";
+	print OUT "$bat/fit\n";
+	print OUT qq(echo "To...                                 Enter..."\n);
+	print OUT qq(echo "  refine CONTIN analysis                 o"\n);
+	print OUT qq(echo "  fit the peaks                          f"\n);
+	print OUT qq(echo "  rename temporary files                 r"\n);	
+	print OUT qq(echo "  delete temporary files                 z"\n);
+	close(OUT);
+	
+	chmod 0755, "f";
+}
+####################
+# make a shell script "r" to rename temporary files TMP_*.eps to $1_*.eps
+sub make_r {
+	open(OUT, ">r") || die "cannot create r ! ";
+	print OUT "$bat/rename $ARGV[0]\n";
+	print OUT "$bat/group1by1 $ARGV[0]\n";
+	close(OUT);
+	
+	chmod 0755, "r";
+}
+#####################
+# make a shell script "z" to remove temporary files at the end
+sub make_z {
+	open(OUT, ">z") || die "cannot create z ! ";
+	print OUT "rm -f TMP*\n";	# delete TMP* file
+	print OUT "rm -f o\n";  		# delete "o" file
+	print OUT "rm -f f\n";  		# delete "f" file
+	print OUT "rm -f r\n";		# delete "r" file
+	close(OUT);
+	
+	chmod 0755, "z";
+}

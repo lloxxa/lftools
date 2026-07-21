@@ -1,0 +1,105 @@
+#!/usr/bin/perl
+####################
+# Scan recursively subdirectories and check if they contain .ASC files or _ASC directory
+#	Then process with the given input parameters
+#
+# Syntax : cnt dirname param [f or r] [woa]
+#
+#	FS last modif 2013/12/12
+####################
+use FindBin;	
+$bat = "$FindBin::Bin/bat";																	# path to bat library
+
+# exit unless matching file or directory name, or new simulated data
+unless (( -d "$ARGV[0]" ) || ( -f "$ARGV[0].ASC" ) || ( -f "$ARGV[0]" ) || ($ARGV[1] == 3)) {	
+	print "$ARGV[0] does not exist in current working directory: ",`pwd`;
+	exit;
+}
+
+# test input parameters and decide what to do
+if ( $ARGV[1] eq "e" ) {																		# simple extraction of results
+	print "Extracting results in directory $ARGV[0]\n";
+	`$bat/extract $ARGV[0]`;
+	
+} elsif ( $ARGV[1] eq "i" ) {																	# placing recursively INFO files
+	print "Placing recursively INFO files in appropriate directories\n";
+	system("$bat/prepCNTb $ARGV[0]");
+	
+} elsif ( $ARGV[1] eq "d" ) {																	# deleting recursively .eps files
+	print "Deleting recursively CNTb .eps plot files in all directories\n";
+	print `$bat/RecClean $ARGV[0]`;
+	
+} elsif ( $ARGV[1] eq "a" ) {																	# deleting recursively average files
+	print "Deleting recursively average files\n";
+	print `$bat/RecCleanAvg $ARGV[0]`;
+	
+} elsif (( -f "$ARGV[0]" ) || ( -f "$ARGV[0].ASC" ) || ($ARGV[1] == 3)) {	# interactive mode if 1st arg is a simple file
+	print "CONTIN analysis of single file $ARGV[0]\n";
+	system("$bat/cnt1by1 $ARGV[0] $ARGV[1] $ARGV[2]");					# simulation possible with $ARGV[2] = noise level !
+		
+} elsif ( -d "$ARGV[0]" ) {																	# batch mode if 1st arg is a directory 			
+	print "Recursive processing in directory $ARGV[0]: ";	
+	&action;																							# define action to perform
+	$debut = time;
+	chdir($ARGV[0]);																			# start recursive action
+	&dodir('.');
+	$fin = time;
+	print "Duration: ",$fin - $debut," [s] \n";
+}	
+
+#################################
+# Recursive loop of action on subdirectories
+sub dodir {
+	local($currdir) = @_;																		# get file list of current directory
+	opendir(DIR,'.') ; local(@dir) = readdir(DIR) ; closedir(DIR);
+	
+	if (grep(/ASC/ && !/t_o/, @dir)) { 													# contain files or directory with ASC ? 
+		chdir('..');																					# then come back
+		if ( $dir eq "" ) { 																		# if only 1 recursion level initialize $dir !
+			@pwd = split(/\//,$ARGV[0]);													# correct tricky bug
+			$dir = $pwd[$#pwd];																# when $ARGV[0] is a path
+		}
+		($act = $action) =~ s/dirname/$dir/;												# update directory name
+		system($act);																				# and perform action
+	} else {	
+		@dir = grep(!/^\./ && !/_discarded/ && -d, @dir);							# else test which are directories and put them in @dir
+		foreach $dir (@dir) {																	# for each one
+			chdir($dir);																			# move down in the file hierarchy
+			dodir('.');																				# repeat
+		}
+		chdir('..');																					# then move up in the file hierarchy
+	}
+}
+#################################
+# Define action to perform from the input parameters
+sub action {
+	if ( $ARGV[1] eq "s" ) {
+		print "selecting results\n";
+		$action = "$bat/select dirname";
+		
+	} elsif ( $ARGV[1] eq "p" ) {
+		print "plotting the data\n";
+		$action = "$bat/intb dirname";
+		
+	} elsif ( $ARGV[1] eq "u" ) {
+		print "moving discarded data files back in place\n";
+		$action = "$bat/displaceBk dirname";
+		
+	} elsif ( $ARGV[1] eq "r" ) {
+		print "fitting again time distributions\n";
+		$action = "$bat/refit dirname";
+		
+	} elsif ( $ARGV[1] eq "g" ) {
+		print "retrieving graphic outputs\n";
+		$action = "$bat/retrieve dirname";
+		
+	} elsif ( $ARGV[1] =~ /[0-2]/ )  {
+		print "CONTIN analysis\n";
+		$action = "$bat/cntb dirname $ARGV[1] $ARGV[2] $ARGV[3]";
+		
+	} else {
+		print "\nInvalid parameter: $ARGV[1] !\n";
+		print "Don't know what to do. Exited.\n\n";
+		exit;
+	}
+}

@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+########################################
+#	Extract the results from _C files
+#	Calculate the cumulated sum of the ordinates. 
+#	Generate a R scale from the T scale
+#
+#   output TMP_DISTRIB,TMP_DISTRIB_N & TMP_PLOTVAR
+#	also output normalized distribution to name_n
+#
+#	original version Rolf Klücker 13/10/95
+#   last modif FS 2013/05/30
+########################################
+
+chop($p = `pwd`); $path = ($ARGV[0] eq "" ? $p : $ARGV[0]);
+
+&get_distr;				# read distribution data from TMP_DISTRIB
+#&output_distr_n;		# write normalized distribution data to TMP_DISTRIB_N
+&output_plotvar;		# write instructions for gnuplot
+
+###################
+# get distribution data from TMP_DISTRIB
+sub get_distr {
+	# copy contents between files	instead of &output_distrib_n
+	# no longer clear what we do with TMP_DISTRIB_N !!
+	# identical results with simple copy
+	system("cp $path/TMP_DISTRIB $path/TMP_DISTRIB_N");
+	
+	# extract useful values
+	open(IN, "<$path/TMP_DISTRIB") || die "cannot open $path/TMP_DISTRIB ! ";
+	$i = 0;
+	while ($i < 10) {
+		chop($head[$i] = <IN>);
+		$i++;
+	}
+	$i = 0;
+	while (<IN>) {
+		$tmp[$i] = $_;
+		$i++;
+	}
+	@t = split(/ /,$head[0]);
+	$name = $t[2];
+	@t = split(/=/,$head[6]);
+	$asymptote = $t[1];
+	@t = split(/ /,$head[7]);
+	$Tmax = $t[3];
+	@t = split(/\t/,$tmp[0]);
+	$cst = $t[3]/$t[0];
+	$xmin = $t[0];
+	@t = split(/\t/,$tmp[$#tmp]);
+	$xmax = $t[0];
+	
+}
+###################
+# write normalized distribution data to TMP_DISTRIB_N
+sub output_distr_n {
+	open(OUT, ">$path/TMP_DISTRIB_N") || die "cannot create $path/TMP_DISTRIB_N ! ";
+
+	#	generate contents of output file
+	print OUT "#data -> $name\n";
+	print OUT "#Temperature : ",$T,"\n";
+	print OUT "#Angle : ",$Ang,"\n";
+	print OUT "#Viscosity : ",$Visc,"\n";
+	print OUT "#Refractive index : ",$Ri,"\n";
+	print OUT "#Wavelength : ",$Wl,"\n";
+	print OUT "#asymptote = $asymptote\n";
+	print OUT "#Tmax (s) = $abscissa[$imax]\n";
+	print OUT "#Rmax (nm) = ",$Rmax,"\n";
+	print OUT "#$item[2]\t$name\t@item[1]\tRadius(nm)\tcum($name)\tlog(abscissa)\n";
+	
+	$i = 0;
+	$log10=log(10);
+	$cum=$cum*(log($abscissa[$max])-log($abscissa[1]))/$log10/($max-1);
+	while ($i++ < $max) {
+		$R= sprintf "%0.3e",$cst*$abscissa[$i];							# relation time-radius
+		$la=log($abscissa[$i])/$log10;
+		$ord= $ordinate[$i]/$cum;
+		$err= $error[$i]/$cum;
+		print OUT "$abscissa[$i]\t".$ord."\t".$err."\t$R\t$cum\t$la\n";	# write formatted output
+	}
+	close (OUT);
+}
+####################
+# write gnuplot instructions to transmit useful info
+sub output_plotvar {
+	$xmin = 10**(-8);
+	$xmax = 10**3;
+	open (OUT, ">$path/TMP_PLOTVAR") || die "cannot create $path/TMP_PLOTVAR ! ";
+	print OUT qq(name="$name"\n);
+	$name =~s/_/ /g;
+	print OUT qq(set title "$name" font "Helvetica,30"\n);
+	print OUT qq(set label "$Fbl"."asymptote = $asymptote" at graph 0.58, 0.80\n);
+	print OUT qq(cst = $cst\n);
+	print OUT qq(tmax = $Tmax\n);
+	print OUT qq(xmin = $xmin\n);
+	print OUT qq(xmax = $xmax\n);
+	print OUT qq(path = "$path"\n);
+	if ($ARGV[0] ne "") {print OUT qq(circ = 2\n);}
+	if ($name =~ s/\tsimulation//) {print OUT qq(circ = 1\n);}
+	close(OUT);
+}

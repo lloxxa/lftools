@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+##################################
+#	Rename temporary files TMP_*.eps to $1_*.eps
+#	Remove other TMP_ files
+#
+#	FS last modif 2013/06/05
+##################################
+chop($p = `pwd`);
+
+if ($ARGV[0] =~ /\//) {					# batch process
+	@path = split(/\//,$ARGV[0]);
+	$rac = pop(@path);
+	$rac =~ s/\.ASC//;
+	$path = join("/",@path);
+} else {											# only one file
+	$path = $p;
+	$rac = $ARGV[0];
+}
+
+# get file names beginning with "TMP" and containing "eps" in current working directory
+opendir(DIR,$path);
+@files = sort grep (/^TMP/ && /eps/, readdir(DIR));
+closedir(DIR);
+
+# change TMP to name of current file
+while (@files) {
+	$old = $path."/".shift(@files);
+	($new = $old) =~ s/TMP/$rac/;
+	rename($old,$new);
+}
+
+# delete all other files beginning with TMP_
+system("rm $path/TMP_*");

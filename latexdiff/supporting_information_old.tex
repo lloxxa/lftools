@@ -1,0 +1,151 @@
+\documentclass{article}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{cite}
+
+\usepackage{setspace}
+\doublespacing
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\setcounter{figure}{0}
+
+
+\begin{document}
+
+\section*{Electronic supporting information (ESI)}
+{\Large{Rapid and quantitative de-\emph{tert}-butylation for poly(acrylic acid) block copolymers and
+influence on relaxation of thermoassociated transient networks}}\\[3\baselineskip]
+{\textit{Alexei D. Filippov$^a$, Ilse A. van Hees$^a$, Remco Fokkink$^a$, Ilja Voets$^b$ and Marleen Kamperman$^a$}}\\[1\baselineskip]
+{\textit{$^{a}$}~Laboratory of Physical Chemistry and Soft Matter, Wageningen University \&
+Research, Stippeneng 4, 6708WE, Wageningen, The Netherlands.} \\
+{\textit{$^{b}$~Institute for Complex Molecular Systems, Eindhoven University of Technology,
+P.O. box 513, 5600 MB Eindhoven, The Netherlands}}
+
+\clearpage
+\section{Synthesis of pNIPAm-\emph{b}-ptBuAc-CS$_\mathrm{3}$-ptBuAc-pNIPAm precursors}
+We prepared an ABA triblock precursor by successive polymerization of 
+pNIPAm (N) and ptBuAc (NTN), controlled by bis(methylpropionic acid) trithiocarbonate (BMAT), as shown in
+Figure \ref{syn:pNBN}. NMR spectroscopy in CDCl$_\mathrm{3}$ gave structure-conform 
+spectra, as seen in 
+Figure \ref{nmr:pNBN-short}.
+Polymerizations were controlled, as judged by the reasonable agreement between
+conversion-based mean molecular weight and molecular weight distributions measured by 
+gel permeation 
+chromatography (GPC) in THF, see 
+Table \ref{tab:orgsec} for molecular weight averages $M_n$ and dispersities $D$. 
+In addition, chain extension of the pNIPAm-BMAT precursors with 
+\emph{tert}-butyl acrylate resulted in no low-molecular weight shoulder. This can be 
+clearly seen in the GPC elugrams in Figure \ref{nmr:pNBN-short} (right).
+
+We note that all elugrams show a slight tailing, which is due to the interaction of the 
+pNIPAm blocks 
+with the column material \cite{Cetintas2017}, and results in underestimation of the 
+molecular weight
+and overestimation of dispersity. Since these blocks are small compared to the p\emph{t}
+BuAc block and dispersity values are acceptable 
+and reasonably comparable to other block copolymers of NIPAm and styrene,\cite{Cetintas2017} 
+this level of characterization was deemed adequate for the screening of deprotection methods.
+In addition, we have analyzed the corresponding de-esterified polymers using aqueous SEC,
+which showed a somewhat lesser degree of tailing, but qualitatively similar results (see 
+main text).
+
+Solid-state FTIR spectra were taken on p\emph{t}BuAc precursors and the sodium salts of 
+the corresponding 
+TFA/DCM and HCl/HFIP cleavage products. The spectra show the broad COO---Na stretch 
+vibration between 3600 and 2800 cm$^{-1}$, 
+and alkyl stretch vibrations at 3000 cm$^{-1}$. In the case of the pNIPAm---p\emph{t}
+BuAc copolymer, the C=O vibration corresponding to 
+\emph{tert}-butyl ester appears at 1750 cm$^{-1}$. For the case of the sodium salts of 
+the liberated acids, the C=O vibration is broadened 
+and shifted to 1570 cm$^{-1}$. The two NIPAm N-H---C=O amide vibrations appear at 1650 
+and 1550 cm$^{-1}$, but only the former is visible
+in the copolymers. The TFA and HCl-treated show highly similar spectra, save for a 
+resonance at 1680 cm$^{-1}$ in the former, which we
+tentatively attribute to residual \emph{tert}-butyl ester. Figure \ref{fig:ir} shows 
+representative spectra for 
+N$_\mathrm{24}$T$_\mathrm{330}$N$_\mathrm{24}$ and the (partially) deprotected products. 
+
+\begin{table}
+\centering
+\caption{Characteristic SEC results for NTN synthesis. 
+Block lengths are based on theoretical molecular weight $M_{th}$ that is based on 
+monomer conversion. $M_n$ and $D$ are calculated from GPC traces after elution in THF.}
+\begin{tabular}{lllll}
+\toprule
+&Polymer structure 	&$M_{th}$ (kDa) & $M_{n}$  (kDa)& $D$\\
+\midrule
+&N$_\mathrm{26}$-T$_\mathrm{318}$-N$_\mathrm{26}$							&	46.8	&	27.6	&	1.33 \\
+&N$_\mathrm{25}$-T$_\mathrm{362}$-N$_\mathrm{25}$							&	52.8	&	45.6	&	1.49 \\
+&N$_\mathrm{24}$-T$_\mathrm{330}$-N$_\mathrm{24}$							&	47.7	&	25.4	&	1.60 \\
+\bottomrule
+\end{tabular}
+
+\label{tab:orgsec}
+\end{table}
+
+\begin{figure}
+\includegraphics[width=\linewidth]{pNIPAAm-b-ptBuAc_precursors.eps}
+\caption{RAFT synthesis of pNIPAm-\emph{b}-p\emph{t}BuAc-CS$_\mathrm{3}$-p\emph{t}BuAc-pNIPAm, with ptBuAc as precursor for the pAA block.
+\label{syn:pNBN}}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{subfigure}{.5\textwidth}
+\includegraphics[width=.99\linewidth]{syn-pNTN-shortchain.pdf}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+\includegraphics[width=.99\linewidth]{orgsec-pnipaam-ptbuac2.pdf}
+\end{subfigure}
+\caption{(left) 400 MHz $^\mathrm{1}$H-NMR spectra of pNIPAm$_{\mathrm{51}}$-BMAT and 
+pNIPAM$_{\mathrm{51}}$-\emph{b}-p\emph{t}BuAc$_{\mathrm{300}}$-BMAT (right) SEC elugrams of pNIPAM-BMAT and 
+pNIPAM-p\emph{t}BuAc in THF with refractive index detection}
+\label{nmr:pNBN-short}
+\end{figure}
+
+
+\begin{figure}
+\centering
+\includegraphics[width=.8\linewidth]{FTIR-spectral-data.pdf}
+\caption{FTIR spectra of a common of (blue) N$_\mathrm{24}$T$_\mathrm{330}$N$_\mathrm{24}$, (yellow)
+the Na salts of the deprotection products (dashed line) of TFA/DCM, 
+N$_\mathrm{24}$A$_{\mathrm{297}}$T$_\mathrm{33}$N$_\mathrm{24}$, and (solid line) HCl/HFIP, 
+N$_\mathrm{24}$A$_{\mathrm{330}}$N$_\mathrm{24}$. All spectra have been normalized to the alkyl C-H
+resonance at 2935 cm$^{-1}$.}
+\label{fig:ir}
+\end{figure}
+
+\newpage
+\begin{figure}
+\centering
+\includegraphics[width=.8\linewidth]{AQS04-LF37-LF38-HDZ-annotated.pdf}
+\caption{SEC traces of N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$-BMAT (green line), its TFA-treated analogue 
+N$_\mathrm{24}$-(A$_\mathrm{297}$-T$_\mathrm{33}$)-N$_\mathrm{24}$-BMAT (red line), and its hydrazine-treated cleavage product,
+N$_\mathrm{24}$-A$_\mathrm{220}$-SH (blue line). Numbers given are found $\mathrm{M}_\mathrm{n}$ values. }
+\label{fig:aqs04}
+\end{figure}
+
+\newpage
+\begin{figure}
+\centering
+\begin{subfigure}{.5\textwidth}
+\includegraphics[width=.99\linewidth]{ABADLS03-Mean-Count-Rates.pdf}
+\end{subfigure}
+\caption{Raw count rates in scattering of a 292 mg mL$^{-1}$ solution of N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$ (blue circles)
+and N$_\mathrm{24}$-(A$_\mathrm{297}$-T$_\mathrm{33}$-N$_\mathrm{24}$ (purple squares) as function of sample temperature. Solutions are 
+at zero salt. Error bars are the standard deviation of the count rate distribution.}
+\label{dls:CRs}
+\end{figure}
+
+\clearpage
+
+\bibliography{library}{}
+\bibliographystyle{ieeetr}
+
+\end{document}

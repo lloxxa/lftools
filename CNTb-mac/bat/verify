@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+###########################################
+#	Recalculate a data curve from the distribution produced by CONTIN.
+#	Each file given as argument will be processed and 
+#	the results written to TMP_VERIF in the same directory
+#
+#	original version Rolf Klücker 13/10/95
+#   last modified FS 2014/02/21
+###########################################
+
+chop($p = `pwd`); $path = ($ARGV[0] eq "" ? $p : $ARGV[0]);
+
+&read_distrib;		# read distribution data
+&read_statwt;		# read statistical weights
+&output_recalc;		# recalculate smoothed data curve and weighted residuals from input data
+
+#####################
+# read distribution data
+sub read_distrib {
+	open(RESULT, "<$path/TMP_DISTRIB") || die "cannot open (1) $file_result ! \n";
+	# skip first 6 lines
+	while ($i < 6) {
+		$item=<RESULT>;
+		$i++;
+	}
+	# then read useful info
+	$asympt=<RESULT>;
+	$Tmax=<RESULT>;
+	$Rmax=<RESULT>;
+	# then read distribution data
+	$i = 0;
+	while (<RESULT>) {
+		chop;
+		($abscissa[$i], $ordinate[$i], $error[$i]) = split(/\t/);
+		$i++;
+	}
+	close (RESULT);
+	$max = $i-1;	# nb. of grid points
+
+	$cum = 0;
+	$i = 0;
+	while ($i++ < $max) {
+		$cum += $ordinate[$i];
+	}
+	
+	# display info on terminal screen
+	print "\ndata -> @ordinate[0]\n";
+	print "\t# gridpoints = $max\n";
+	printf "\tamplitude = %1.3f\n",$cum;
+	print "\t".substr($asympt,1)."\n";
+	print "\t".substr($Tmax,1)."\n";	
+	print "\t".substr($Rmax,1)."\n";
+}
+####################
+# read statistical weights
+sub read_statwt {
+	open(DATA, "<$path/TMP_STATWT");
+	$i = 1;
+	while (<DATA>) {
+		chop($w[$i]=$_);
+		$i++;
+	}
+	close(DATA);
+}	
+####################
+# recalculate smoothed data curve and weighted residuals from input data
+sub output_recalc {
+	open(DATA, "<$path/TMP_CORREL") || die "cannot open $path/TMP_CORREL ! \n";
+	open(OUT, ">$path/TMP_VERIF") || die "cannot create $path/TMP_VERIF ! \n";
+	print OUT "temps	y(t)	y_calc(t) #	residuals\n";
+	$j = 0;
+	@item = split(/ /,$asympt);
+	$asymptote = $item[2];
+	$waste = <DATA>;
+	while (<DATA>) {
+		chop;
+		($t[$j], $y[$j]) = split(/\t/);
+		if ($j > 0) {
+			$i = 0;
+			$y_test[$j] = $asymptote;
+			while ($i++ < $max) {
+				$y_test[$j] += $ordinate[$i] * exp( -$t[$j] / $abscissa[$i] );
+			} 
+			if ($w[$j] eq "") { $w[$j]=1;}
+			$w_residual = $w[$j] * ($y[$j] - $y_test[$j]);
+			print OUT $t[$j], "\t", $y[$j], "\t", $y_test[$j],"\t", $j, "\t", $w_residual, "\n";
+		}
+		$j++;
+	}
+	close (OUT);
+	close (DATA);
+}

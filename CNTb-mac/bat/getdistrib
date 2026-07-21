@@ -1,0 +1,207 @@
+#!/usr/bin/perl
+#######################################
+#	Extract the results from _C files
+#	Calculate the cumulated sum of the ordinates. 
+#	Generate a R scale from the T scale
+#
+#	output TMP_DISTRIB,TMP_DISTRIB_N & TMP_PLOTVAR
+#	also output normalized distribution to name_n
+#
+#	original version Rolf Klücker 1995/10/13
+#	last modif FS 2013/11/12
+#######################################
+
+chop($p = `pwd`); $path = ($ARGV[0] eq "" ? $p : $ARGV[0]);
+
+&read_Cfile;																		# read CONTIN output file TMP_C
+&output_distr;																	# write distribution data to TMP_DISTRIB
+&output_distr_n;																# write normalized distribution data to TMP_DISTRIB_N
+&output_statwt;																	# write (statistical weights)^(1/2) to TMP_STATWT
+&output_plotvar;																	# write instructions for gnuplot
+
+##################
+# read CONTIN output file
+sub read_Cfile {
+
+	# open and read input file :
+	open(FILE, "<$path/TMP_C") || die "cannot open $path/TMP_C ! ";
+	$output = 0; $sim = 0;
+	$i = 0;
+	while (<FILE>) {
+		s/\r//g; chop;
+		if (/CONTIN - VERSION 2DP/) { $name = &take;}								# original name of dataset
+		if ($name =~ s/\tsimulation//) { $sim=1; print "essai : ",$name,"\n";}	
+		if (/ NY /) { $NY= &take;}																# number of Y(t) data
+					
+	# experimental parameters :
+		if (/RUSER    18/) { $T = &take;}														# Temperature					
+		if (/RUSER    17/) { $Ang = &take;}													# Angle
+		if (/RUSER    19/) { $Visc = &take;}													# Viscosity
+		if (/RUSER    15/) { $Ri = &take;}														# Refractive index
+		if (/RUSER    16/) { $Wl = &take;}														# Wavelength
+			
+	# get statistical weights :
+		if ($w != 0 && $w < $NY) {
+			&convert_line; @item = split(/\t/);
+			$j = 0;
+			while ($j <= $#item) {
+				$wgt[$w] = $item[$j];
+				$j++;
+				$w++;
+			}		
+		}
+	
+	# get the asymptote with its error :
+		if (/0LINEAR COEFFICIENTS/ && $output == 1) { 							# free baseline used
+			&convert_line; @lb = split(/\t/);
+			$asymptote = sprintf("%6.2e", $lb[2])." +/- ".sprintf("%6.2e", $lb[4]);
+			$output = 0;																				#	end of distribution data
+		}
+		if (/0PEAK 1 GOES FROM/ && $output == 1) { 									# fixed baseline used
+			$Fbl="            fixed ";
+			$asymptote = "0";			
+			$output = 0;																				#	end of distribution data			
+		}
+		
+	# extract main results (ordinate, error, abscissa) :
+		if ($output == 1) {
+			&convert_line; s/[.]*X[.]*//g;
+			$i++;
+			($ordinate[$i], $error[$i], $abscissa[$i]) = split(/\t/);
+			$error[$i] =~ tr/D/E/;																# replace "D" by "E" for the exponent !
+		}
+		
+		if (/ORDINATE/) { 																		# distribution data begin next line
+			&convert_line; @item = split(/\t/);
+			$output = 1;}
+			
+		if (/SQUARE ROOTS OF LEAST SQUARES WEIGHTS/) { $w=1;} 		# statistical weights begin next line				 
+	}
+	close (FILE);																						# close input-file
+	$max = $i;																							# get number of distribution points
+	
+	#	calculate $cst / radius = $cst * time (Stokes-Einstein) :
+	$pi=3.14159; $cst=1;
+	if ($Wl!=0 && $Ang!=0 && $Ri!=0 && $T!=0 && $Visc!=0) {
+		$q2=(4*$pi*$Ri*sin($Ang/2*$pi/180)/$Wl/1e-7)**2;
+		$cst = 1.38e-16*$T*$q2/(6*$pi*$Visc*1e-2)/1e-7;
+	}
+	
+	#	find maximum of the distribution
+	$i=0; $Dmax=0; $cum=0;
+	while ($i <= @ordinate) {
+		$Dmax=($Dmax < $ordinate[$i] ? $ordinate[$i] : $Dmax);
+		$imax=($Dmax == $ordinate[$i] ? $i : $imax);
+		$i++;
+	}
+
+	@abscissa[$imax]=~s/E/e/;
+	$Rmax=sprintf("%1.1f",$cst*@abscissa[$imax]);
+}
+###################
+# write distribution data to TMP_DISTRIB
+sub output_distr {
+	open(OUT, ">$path/TMP_DISTRIB") || die "cannot create $path/TMP_DISTRIB ! ";
+
+	#	generate contents of output file :
+	print OUT "#data -> $name\n";
+	print OUT "#Temperature : ",$T,"\n";
+	print OUT "#Angle : ",$Ang,"\n";
+	print OUT "#Viscosity : ",$Visc,"\n";
+	print OUT "#Refractive index : ",$Ri,"\n";
+	print OUT "#Wavelength : ",$Wl,"\n";
+	print OUT "#asymptote = $asymptote\n";
+	print OUT "#Tmax (s) = $abscissa[$imax]\n";
+	print OUT "#Rmax (nm) = ",$Rmax,"\n";
+	print OUT "#$item[2]\t$name\t$item[1]\tRadius(nm)\tcum($name)\tlog(abscissa)\n";
+	
+	$i = 0;
+	$cum = 0;
+	$log10=log(10);
+	while ($i++ < $max) {
+		$R= sprintf "%0.3e",$cst*$abscissa[$i];														# relation time-radius
+		$cum += $ordinate[$i];																				# cumulate ordinate
+		$la=log($abscissa[$i])/$log10;
+		print OUT "$abscissa[$i]\t$ordinate[$i]\t$error[$i]\t$R\t$cum\t$la\n";		# write formatted output
+	}
+	close (OUT);
+	$dup = $path."/".$name."_d.txt";
+	system("cp $path/TMP_DISTRIB $dup");
+}
+###################
+# write normalized distribution data to TMP_DISTRIB_N
+sub output_distr_n {
+	open(OUT, ">$path/TMP_DISTRIB_N") || die "cannot create $path/TMP_DISTRIB_N ! ";
+
+	#	generate contents of output file :
+	print OUT "#data -> $name\n";
+	print OUT "#Temperature : ",$T,"\n";
+	print OUT "#Angle : ",$Ang,"\n";
+	print OUT "#Viscosity : ",$Visc,"\n";
+	print OUT "#Refractive index : ",$Ri,"\n";
+	print OUT "#Wavelength : ",$Wl,"\n";
+	print OUT "#asymptote = $asymptote\n";
+	print OUT "#Tmax (s) = $abscissa[$imax]\n";
+	print OUT "#Rmax (nm) = ",$Rmax,"\n";
+	print OUT "#$item[2]\t$name\t@item[1]\tRadius(nm)\tcum($name)\tlog(abscissa)\n";
+	
+	$i = 0;
+	$log10=log(10);
+	$cum=$cum*(log($abscissa[$max])-log($abscissa[1]))/$log10/($max-1);
+	while ($i++ < $max) {
+		$R= sprintf "%0.3e",$cst*$abscissa[$i];														# relation time-radius
+		$la=log($abscissa[$i])/$log10;
+		$ord= $ordinate[$i]/$cum;
+		$err= $error[$i]/$cum;
+		print OUT "$abscissa[$i]\t".$ord."\t".$err."\t$R\t$cum\t$la\n";					# write formatted output
+	}
+	close (OUT);
+}
+###################
+# write statistical weights to TMP_STATWT
+sub output_statwt {
+	open(OUT, ">$path/TMP_STATWT") || die "cannot create $path/TMP_STATWT ! ";
+	$i = 1;
+	while ($i <= $#wgt) {print OUT $wgt[$i],"\n"; $i++;}
+	close(OUT);
+	$dup = $path."/".$name."_wgt.txt";
+	system("cp $path/TMP_STATWT $dup");
+}
+####################
+# write gnuplot instructions to transmit useful info
+sub output_plotvar {
+	open(IN,"<$path/TMP_CORREL_INIT") || die "cannot open $path/TMP_CORREL_INIT ! ";
+	chop($tlim = <IN>);	
+	($tmin,$tmax)= split(/,/,$tlim);
+	close(IN);
+	$xmin=10**(int(log($tmin>$abscissa[2] ? $abscissa[2] : $tmin)/log(10))-1);
+	$xmax=10**(int(log($tmax<$abscissa[$#abscissa] ? $abscissa[$#abscissa] : $tmax)/log(10))+1);
+
+	open (OUT, ">$path/TMP_PLOTVAR") || die "cannot create $path/TMP_PLOTVAR ! ";
+	print OUT qq(name="$name"\n);
+	$name =~s/_/ /g;
+	print OUT qq(set title "$name" font "Helvetica,30"\n);
+	print OUT qq(set label "$Fbl"."asymptote = $asymptote" at graph 0.58, 0.80\n);
+	print OUT qq(cst = $cst\n);
+	print OUT qq(tmax = $abscissa[$imax]\n);
+	print OUT qq(xmin = $xmin\n);
+	print OUT qq(xmax = $xmax\n);
+	print OUT qq(path = "$path"\n);
+	if ($ARGV[0] ne "") { print OUT qq(circ = 2\n);}													# batch no display mode
+	if ($sim) { print OUT qq(circ = 1\n);}
+	close(OUT);
+}
+####################
+# take last item in CONTIN file line
+sub take {
+		s/ [ ]*/\t/g;					# replace all tokens of <space>'s by <tab>'s
+		@item = split(/\t/);
+		$item[$#item];	
+}
+####################
+# convert <space>'s and <CR> in <tab> and <LF> !
+sub convert_line {
+	s/\r//g;								# eliminates the <CR>'s
+	s/ [ ]*//;							# eliminates leading <space>'s
+	s/ [ ]*/\t/g;						# replaces all tokens of <space>'s by <tab>'s
+}

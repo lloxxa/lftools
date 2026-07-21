@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+####################
+#	Recursive cleaning of .eps plot files in _eps dirs
+#
+#	FS last modif 2014/02/21
+####################
+
+chdir($ARGV[0]);
+&dodir('.');
+
+#################################
+sub dodir {
+	local($currdir)=@_;
+	# get dir list of current directory
+	opendir(DIR,'.'); local(@dirs) = readdir(DIR); closedir(DIR);
+	@dirs = grep(!/^\./, @dirs);
+
+	# test which are directories and explore recursively
+	foreach $dir (@dirs) {
+		if (-d $dir) {
+			if (grep(/_eps$/, $dir)) {
+				`rm -f $dir/*.*`;
+				rmdir("$dir");
+				print "$dir emptied and removed\n";
+			}
+			elsif (!grep(/\./ || /_ASC/ || /discarded/ || /_txt$/, $dir)) {
+				chdir($dir) || print "could not change to $currdir/$dir";
+				dodir('.');
+			}
+		} 
+	}
+	chdir('..');
+}

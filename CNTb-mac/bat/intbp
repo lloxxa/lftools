@@ -1,0 +1,257 @@
+#!/usr/bin/perl
+#################################
+# read ASC files
+# check for aberrant values
+# plot intensity trace and ICF for each ASC file
+# mark bad data files for later displacement
+#
+# 	usage: intbp dirname
+#
+#	assumes .ASC files are placed in dirname
+#
+#	FS last modif 2013/11/07
+#################################
+use FindBin;	
+$bat = "$FindBin::Bin";																					# path to bat library
+
+# default set of criteria to discard data -------------------------------------------------------------------------------------------------------
+$c_dIsI = 0.2;																								# max value for dI/I
+$c_asympt = 0.01;																							# max value for asymptote
+$c_g0 = 1;																										# max value for ICF - 1
+#----------------------------------------------------------------------------------------------------------------------------------------------------
+
+# check existence of .ASC files in the right place
+$path = $ARGV[0];
+&file_list("$path");
+@files = sort grep (/\.ASC/ && !/av/ && !/t_o/, @allfiles);
+if ( grep (/INFO_P/, @allfiles) ) { &readINFO_P;}
+
+if (!@files) { 
+	if (!grep(/_ASC/ || /_discarded/, @allfiles)) { 
+		print "No data file in $path: exited\n"; exit;
+	} else {
+		&file_list("$path/_ASC"); @asc = sort grep(/\.ASC/ && !/av/, @allfiles);
+		foreach $file (@asc) { `mv "$path/_ASC/$file" "$path/$file"`;}
+		&file_list("$path/_discarded"); @disc = sort grep(/\.ASC/, @allfiles);
+		foreach $file (@disc) { 
+			$todiscard{$file} = "user";
+			`mv "$path/_discarded/$file" "$path/$file"`;
+		}
+	}
+	&file_list("$path");
+	@files = sort grep (/\.ASC/ && !/av/ && !/t_o/, @allfiles); 
+}
+
+unless ( -d "$path/_discarded" ) { mkdir("$path/_discarded");}
+
+# process each ALV file
+foreach $file (@files) {
+	$source_file = "$path/$file";
+	&read_file;																								# read ALV file
+	&check;																										# check parameters to discard obviously bad data
+	&output_correl;																							# write initial ICF data file for further plot
+	&output_trace;																							# write intensity trace for further plot
+	&make_visu;																								# make temporary gnuplot file
+	`gnuplot $path/TMP_visu`;																			# plot it
+	`$bat/rename $path/$file`;																		# rename TMP_*.eps files, delete all other TMP_*
+}
+
+open(OUT, ">$path/TMP_disc");																		# TMP_disc contains ASC file(s) to displace later
+foreach $key (%todiscard) {
+	if ($todiscard{$key}) { print OUT $key,"\n";}
+}
+close(OUT);
+##################################################
+# get user-set criteria to discard bad data
+sub readINFO_P {
+	open(IN,"<$path/INFO_P");
+	chop($c_dIsI = <IN>);
+	chop($c_asympt = <IN>);
+	chop($c_g0 = <IN>);
+	close(IN);
+}
+##################################################
+# check values for g0, asymptote and intensity fluctuations
+# this routine should be the same in intbp and kinI !!!
+sub check {
+	$g0 = $asympt = $imax = $imin = $n = 0; $npts = 20;
+	for ($i = 0; $i <= $#y; $i++) {
+		if ($t[$i] > 5e-7) { $n++; $g0 += $y[$i]/$npts;}											# average first 10 points at lag times > 100 ns
+		last if ($n == $npts);
+	}
+	for ($i = $#y; $i > $#y-50; $i--) { $asympt += $y[$i]/50;}								# average last 50 points
+	for ($i = 0; $i <= $#yT; $i++) { 																		# find Imax & Imin (criterion not used up to now)
+		$imax = ($yT[$i] > $yT[$imax] ? $i : $imax);
+		$imin = ($yT[$i] < $yT[$imin] ? $i : $imin);
+	}
+	$intmax = $yT[$imax];
+	$intmin = $yT[$imin];	
+	$dIsI = $dIm/$Im;
+	if ($dIsI > $c_dIsI) { $todiscard{$file} = "dI/I";}
+	if ($asympt > $c_asympt) { $todiscard{$file} = "asympt.";}
+	if ($g0 >= $c_g0) { $todiscard{$file} = "g(0)";}
+}
+##################################################
+# make gnuplot file to plot intensity trace and initial data
+sub make_visu {
+	$name = $file; $name =~ s/\.ASC//; $name =~ s/_/ /g;
+	open (OUT, ">$path/TMP_visu"); 
+	
+	if ( $todiscard{$file} ) { 
+		$tdsc = $todiscard{$file}; $name .= "  DISCARDED : $tdsc";
+		if ($tdsc eq "dI/I") { 				$color = "#FF00FF";									# magenta
+		} elsif ($tdsc eq "g(0)") { 			$color = "#FF0000";									# red
+		} elsif ($tdsc eq "asympt.") { 	$color = "#FF9999";									# pale red
+		} elsif ($tdsc eq "user") {			$color = "#FF9900";}									# orange
+		print OUT qq(set label "X" font "Monaco,108" tc rgbcolor "$color " at screen 0.8,0.7\n);}
+	
+	$intlbl = "Iav : ".sprintf("%1.2e",$Im)." +/- ".sprintf("%1.2e",$dIm);
+	print OUT qq(set termoption enhanced\n);
+	print OUT qq(set sample 512\n);
+	print OUT qq(set title "$name" font "Monaco,30"\n);
+	print OUT qq(set xlabel "t (s)" font "Monaco,24"\n);										# intensity trace
+	print OUT qq(set xtics font "Monaco,18"\n);
+	print OUT qq(set ylabel "count rate (kHz)" font "Monaco,24"\n);
+	print OUT qq(set ytics font "Monaco,18"\n);
+	print OUT qq(set terminal postscript eps enhanced\n);
+	print OUT qq(set output "$path/TMP_TrI.eps"\n);
+	print OUT qq(plot "$path/TMP_TRACE" using 1:2 title "$intlbl" with lines lw 1.5\n);
+
+	print OUT qq(set logscale x\n);																	# initial data
+	print OUT qq(set xtics 10 format "10^{%T}" nomirror\n);
+	print OUT qq(set xrange [1e-8:1e3]\n);
+	print OUT qq(set xlabel "t (s)" font "Monaco,24"\n);
+	print OUT qq(set logscale y\n);
+	print OUT qq(set yrange [1e-6:1e1]\n);
+	print OUT qq(set ytics 10 format "10^{%T}" font "Monaco,18"\n);
+	print OUT qq(set ylabel "g^{(2)}(t)-1" font "Monaco,24" offset -1.5,0\n);
+#	print OUT qq(set xzeroaxis lt 1\n);
+	print OUT qq(set output "$path/TMP_p.eps"\n);
+	print OUT qq(plot "$path/TMP_CORREL_INIT" using 1:2 title "exp" with points pt 7 lc 3 ps 1\n);
+#	print OUT qq(unset xzeroaxis\n);
+	print OUT qq(set term pop\n);
+	close(OUT);
+}
+##################################################
+# create file of initial data for further display
+sub output_correl {
+	open(OUT, ">$path/TMP_CORREL_INIT") || die "cannot create $path/CORREL.TMP ! \n";
+	print OUT qq($t[0],$t[$#t]\n);
+	print OUT "time\ty(t)\n";
+	$i = 0;
+	while ($i < $npt) {
+		print OUT "@t[$i]\t@y[$i]\n";
+		$i++;
+	}
+	close (OUT)
+}
+##################################################
+# create file of intensity trace for further display
+sub output_trace {
+	open(OUT, ">$path/TMP_TRACE") || die "cannot create $path/TRACE.TMP ! \n";
+	print OUT "time\tI(t)\n";
+	$i = 0;
+	while ($i < @tT) {
+		print OUT "@tT[$i]@yT[$i]\n";
+		$i++;
+	}
+	close (OUT)
+}
+##################################################
+# read ASCII file saved by software on ALV-5000 and ALV-7002
+# extension .ASC added automatically
+# data are t, g(2)(t)-1
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ######  DO NOT ALTER THE ORDER OF THE VARIOUS TESTS !!!   #########
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sub read_file {
+	open(FILE_IN, "<$source_file") || die "cannot open $source_file ! ";		
+	$output = 0;
+	$i = 0;$j = 0;
+	while (<FILE_IN>) {
+		s/\r//g; s/\n//g;
+		if (/Date/) {												# date
+			s/"//g;
+			@item = split(/\t/);
+			$DATUM = $item[$#item];}
+			
+		if (/Time/) {												# time
+			s/"//g;
+			@item = split(/\t/);
+			$CHRONOS = $item[$#item];}
+
+		if (/Temp/) {												# temperature
+			@item = split(/ [ ]*/);
+			$TEMP = @item[$#item];}
+
+		if (/Ang/) {													# angle
+			@item = split(/ [ ]*/);
+			$ANG = @item[$#item];}
+
+		if (/Visc/) {												# viscosity
+			@item = split(/ [ ]*/);
+			$VISC = @item[$#item];}
+
+		if (/Refr/) {												# refractive index
+			@item = split(/ [ ]*/);
+			$INDX = @item[$#item];}
+
+		if (/Wave/) {												# wavelength
+			@item = split(/ [ ]*/);
+			$WAVE = @item[$#item];}
+
+		if (/Duration/) {											# duration
+			@item = split(/ [ ]*/);
+			$DUR = @item[$#item];}
+
+		if (/Rate/) {												# mean count rate
+			$output = 2;} 											# end of correlation data block, begin of intensity trace
+			
+		if (/Diode/) {												# diode monitor
+			@item = split(/ [ ]*/);
+			$MON = @item[$#item];						#chop($MON);
+			$output = 3;} 											# end of intensity data block
+
+		if ($output == 1) {										# inside data block
+			@item = split(/ [ ]*/);								# @item = {time,g(2)-1)}
+			if ($item[1]) {
+#				$t[$i] = &format($item[1]/1000); 		# convert ms to s, then FORTRAN notation
+				$t[$i] = $item[1]/1000; 						# convert ms to s
+				if (@ARGV[1]==2) {$item[2]+=1;}			# back to g(2)(t) ! 
+#				$y[$i] = &format($item[2]);
+				$y[$i] = $item[2];
+				$npt=$i;
+			}
+			$i += 1;}													# count nb of rows
+			
+		if ($output == 2) {										#	inside intensity trace data
+			@item = split(/ [ ]*/);
+			if ($item[2]) {
+				$tT[$j]=$item[1];
+				$yT[$j]=$item[2];
+				$j+=1;
+			}
+		}
+		
+		if (/Cor/) {$output = 1;}								# beginning of data block
+	}
+ 	close(FILE_IN);
+ 	
+ 	# calculate average intensity and standard deviation :
+ 	$i = $Im = 0;
+	while ($i <= $#yT) {
+		$Im += $yT[$i];
+		$i++;
+	}
+	$Im = $Im/$i;
+	$i = $dIm = 0;
+	while ($i <= $#yT) {
+		$dIm += ($yT[$i]-$Im)**2;
+		$i++;
+	}
+	$dIm=sqrt($dIm/$i);
+}
+#################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}
+

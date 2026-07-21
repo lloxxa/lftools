@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+####################
+#	Sort output plots in adhoc directories
+#
+#	FS last modif 2013/11/12
+####################
+
+$path_i=$ARGV[0];
+&move("_p","eps");
+&move("_TrI","eps");
+&move("","ASC");
+if ($ARGV[1] ne "p") {
+	# &move("_RD","eps"); 										# disabled radius distribution plot
+	&move("_RES","eps");
+	&move("_ylog","eps");
+	&move("_d","txt");
+	&move("_FIT","eps");
+	&move("_fit","txt");
+	&move("_wgt","txt");
+	&remove;
+}
+if (!/$path_i\/_discarded/) { mkdir($path_i."/_discarded",0755);}
+####################
+sub move {
+	$crit = shift(@_);
+	$ext = shift(@_);
+	$path_f = $path_i."/".$crit."_".$ext;
+	if (!/$path_f/) { mkdir($path_f, 0755);}
+	
+	opendir(DIR,$path_i);
+	@files = sort grep (/$crit\.$ext/, readdir(DIR)); 
+	closedir(DIR);
+
+	while (@files) {
+		$file = shift(@files);
+		system("mv $path_i/$file $path_f/$file");
+	}
+}
+####################
+# remove formatted input files
+sub remove {
+	opendir(DIR,$path_i."/_ASC");
+	@files = sort grep (/\.ASC/, readdir(DIR)); 
+	closedir(DIR);
+	foreach $file (@files) {
+		$file =~ s/\.ASC//;
+		if (-e "$path_i/$file") {system("rm $path_i/$file");}
+	}
+}

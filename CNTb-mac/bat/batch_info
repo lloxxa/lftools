@@ -1,0 +1,108 @@
+#!/usr/bin/perl
+####################
+#	Get info for batch processing files by CONTIN
+#
+#	FS 2014/02/22
+####################
+
+if ($ARGV[2]) { &get_info; &output_INFO_C; exit;}							# if third argument 'getinfo' simply get info 
+	
+# check existence and place of .ASC files in directory
+&empty_dir;																					# always empty directories with previous results
+&file_list("$ARGV[0]");																	# get @allfiles in $ARGV[0]
+if ( !grep(/\.ASC/, @allfiles) ) {
+	unless ( grep(/_ASC/, @allfiles) ) { print "1"; exit;}
+	&file_list("$ARGV[0]/_ASC");
+	@files = sort grep (/\.ASC/, @allfiles);
+	unless ( @files ) { print "1"; exit;}
+	foreach $file (@files) {
+		system("mv $ARGV[0]/_ASC/$file $ARGV[0]/$file");
+	}
+}
+
+# check existence of file INFO_C in directory
+if ($ARGV[1] ne "p") {																		# only if CONTIN will run. Skip if simple data plot
+	&file_list("$ARGV[0]");
+	if ( grep(/INFO_C/,@allfiles) ) { print "0";} else { print "2";} 			# signal answer
+}
+
+##################################
+# gather info for initial data processing
+sub get_info {
+	print "WARNING : NO DEFAULT VALUES FOR BATCH PROCESS !!!\n";
+	print "First point (sec) ? ";															# first used point
+	chop($tp = <STDIN>);
+	
+	print "Last point (sec) ? ";															# last used point
+	chop($td = <STDIN>);
+	
+	$format = "%0.2e";
+	print "Tau min (sec) ? ";																# lower limit for characteristic times
+	chop($tmin = <STDIN>);
+	$tmin= &format($tmin);
+			
+	print "Tau max (sec) ? ";																# upper limit for characteristic times
+	chop($tmax = <STDIN>);
+	$tmax= &format($tmax);
+	
+	print "Nb of grid points in the distribution ? (default = 100) ";			# number of grid points
+	chop($Ng=<STDIN>);
+	$Ng = "100" if ($Ng eq "");
+	
+	print "Data transformation ( y [def] OR n ) ? ";
+	chop($Trd = <STDIN>);
+	$Trd = ($Trd eq "n" ? "0" : "1");													# convert answer for use as parameter RUSER(10)
+	if ($Trd eq "1" && $ARGV[1] == 2) { $Trd = "1";}								# initial g(2), input sqrt[g(2)-1]
+	if ($Trd eq "1" && $ARGV[1] != 2) { $Trd = "-1";}							# initial g(2)-1, input sqrt[g(2)-1]
+
+	print "Free baseline ( y [def] OR n ) ? ";						
+	chop($Lb = <STDIN>);
+	$Lb = ($Lb eq "n" ? "0" : "1");														# convert answer for use as parameter NLINF
+	
+	print "Weighted residuals ( y OR n [def] ) ? ";
+	chop($Iwt = <STDIN>);
+	$Iwt = ( $Iwt eq "y" ? "5" : "1");													# convert answer for use as parameter IWT
+}
+##################################
+# output info for batch use
+sub output_INFO_C {
+	open(OUT, ">$ARGV[0]/INFO_C") || die "cannot create $ARGV[0]/TMP_INFO_C\n";
+	print OUT $tp,"\n";
+	print OUT $td,"\n";
+	print OUT $tmin,"\n";
+	print OUT $tmax,"\n";
+	print OUT $Ng,"\n";
+	print OUT $Trd,"\n";
+	print OUT $Lb,"\n";
+	print OUT $Iwt,"\n";
+	close(OUT);
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form=sprintf $format,abs($f);
+	$form=~s/\.//;
+	$form=~s/e/E/;
+	if ($f>=0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop(@interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+#################################
+# remove all result files in the result directories
+sub empty_dir {
+	&file_list("$ARGV[0]");
+	@dir_t = grep(/_eps$/ || /_fit_txt/ || /_d_txt/, @allfiles);
+	foreach $dir (@dir_t) {
+		&file_list("$ARGV[0]/$dir");
+		if ( grep(!/^\./, @allfiles) )  { system("rm $ARGV[0]/$dir/*.*");}
+	}
+}
+#################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

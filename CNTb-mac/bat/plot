@@ -1,0 +1,107 @@
+#########################	gnuplot file to display :
+#								initial data TMP_CORREL_INIT
+#								input data TMP_CORREL
+#								CONTIN distribution TMP_DISTRIB
+#								residuals
+#							display only if interactive mode
+#							some of those printed to .eps files
+#
+#		Modified version to output larger labels on some plots for publication
+#
+####   FS last modif 2014/02/19
+
+set termoption enhanced
+set sample 512
+load "TMP_PLOTVAR"
+
+#########################		residuals
+
+set xtics nomirror font "Helvetica,18"
+set ytics nomirror font "Helvetica,18"
+set xlabel "point k" font "Helvetica,24"
+set ylabel "w@_k^{1/2} (Y_{k} - {/Symbol S}A_{k,i}*X_i)" font "Helvetica,24" offset 0,-4
+set xzeroaxis lt 1
+if (circ != 2) plot "TMP_VERIF" using 4:5 title "weighted residuals" with points pt 7 ps 1.5; pause mouse any
+
+#########################		output previous one to file .eps
+
+set terminal postscript eps enhanced
+set output path."/TMP_RES.eps"
+set ylabel "w@_k^{1/2} (Y_{k} - {/Symbol S}A_{k,i}*X_i)" font "Helvetica,24" offset -0.5,0
+plot "TMP_VERIF" using 4:5 title "residuals" with points pt 6 ps 1
+set term pop
+unset xzeroaxis
+
+#########################		initial & input data, CONTIN fit, time distribution
+
+set logscale x
+set xtics 10 format "10^{%T}" nomirror font "Helvetica,18"
+unset mxtics
+set logscale x2
+set ytics nomirror font "Helvetica,18"
+set y2tics offset -0.5,0 font "Helvetica,18"
+
+set xrange [xmin:xmax]
+set y2range [0:*]
+
+set xlabel "t (s)" font "Helvetica,24"
+set ylabel "Y(t)" font "Helvetica,24" offset 0,0
+set y2label "amplitude" font "Helvetica,24" rotate by 270 offset 0.5,0
+
+set label "{/Symbol t}_{max} = ".sprintf("%3.2e",tmax)." s" at graph 0.706, 0.72
+
+if (cst != 1) set label "R_{max} = ".sprintf("%3.2e",cst*tmax)." nm" at graph 0.70, 0.65; set x2label "R (nm)" offset 0,.5 font "Helvetica,24"; set x2range [xmin*cst:xmax*cst]; set x2tics 10 format "10^{%T}" font "Helvetica,18"; unset mx2tics
+
+if (circ != 1 && circ !=2) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1.5, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 0 ps 1.5,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 5 ps 1.5, "TMP_VERIF" using 1:3 title "calc. fit" with lines lw 2 lc 3; pause mouse any
+
+if (circ == 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1.5, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 0 ps 1.5,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 5 ps 1.5, "TMP_VERIF" using 1:3 title "calc. fit" with lines lw 2 lc 3,"distr_n" using 2:3 axes x1y2 title "input distr." with lines lc 0 lw 1.5; pause mouse any
+
+#########################		output previous one to file .eps
+
+set terminal postscript eps enhanced
+set output path."/".name."_p.eps"
+
+if (circ != 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 7 lc 3 ps 1,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 1 ps 1, "TMP_VERIF" using 1:3 title "calc. fit" with lines lt 1 lw 2
+
+if (circ == 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 0 ps 1,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 1 ps 1, "TMP_VERIF" using 1:3 title "calc. fit" with lines lt 1 lw 2, "distr_n" using 2:3 axes x1y2 title "input distr." with lines lc 0 lw 1.5
+
+set term pop
+
+#########################		initial & input data, CONTIN fit, time distribution (with y log scale)
+
+set logscale x
+set xtics 10 format "10^{%T}" nomirror
+unset mxtics
+set logscale x2
+set logscale y
+set ytics 10 format "10^{%T}" nomirror
+
+#set yrange [] writeback
+set yrange [1e-6:10]
+set y2tics
+
+set xrange [xmin:xmax]
+set y2range [0:*]
+
+set xlabel "t (s)" font "Helvetica,24"
+set ylabel "Y(t)" font "Helvetica,24" offset 0,0
+set y2label "amplitude" font "Helvetica,24" rotate by 270 offset 0.5,0
+
+set label "{/Symbol t}_{max} = ".sprintf("%3.2e",tmax)." s" at graph 0.706, 0.72
+if (cst != 1) set label "R_{max} = ".sprintf("%3.2e",cst*tmax)." nm" at graph 0.70, 0.65; set x2label "R (nm)" font "Helvetica,24"; set x2range [xmin*cst:xmax*cst]; set x2tics 10 format "10^{%T}" font "Helvetica,18"; unset mx2tics
+
+if (circ != 1 && circ != 2) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1.5, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 3 ps 1.5,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 5 ps 1.5, "TMP_VERIF" using 1:3 title "calc. fit" with lines lw 2 lc 3; pause mouse any
+
+if (circ == 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1.5, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 0 ps 1.5,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 5 ps 1.5, "TMP_VERIF" using 1:3 title "calc. fit" with lines lw 2 lc 3, "distr_n" using 2:3 axes x1y2 title "input distr." with lines lc 0 lw 1.5; pause mouse any
+
+#########################		output previous one to file .eps
+
+set terminal postscript eps enhanced
+set output path."/TMP_ylog.eps"
+
+if (circ != 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 7 lc 3 ps 1,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 1 ps 1, "TMP_VERIF" using 1:3 title "calc. fit" with lines lt 1 lw 2
+
+if (circ == 1) plot "TMP_DISTRIB_N" using 1:2:3 axes x1y2 title "distribution" with errorbars pt 7 ps 1, "TMP_CORREL_INIT" using 1:2 title "initial data" with points pt 6 lc 0 ps 1,"TMP_VERIF" using 1:2 title "input data" with points pt 7 lc 1 ps 1, "TMP_VERIF" using 1:3 title "calc. fit" with lines lt 1 lw 2, "distr_n" using 2:3 axes x1y2 title "input distr." with lines lc 0 lw 1.5
+
+set term pop
+

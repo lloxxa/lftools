@@ -1,0 +1,124 @@
+#!/usr/bin/perl
+########################################
+#	group .eps plots as small vignettes in pdf file in interactive mode
+#
+#	FS last modif 2014/02/22
+########################################
+
+chop($p = `pwd`); #$path = ($ARGV[0] eq "" ? $p : $ARGV[0]);
+
+&file_list('.');
+@files = grep(/$ARGV[0]/ && /\.eps/, @allfiles);
+foreach (@files) {
+	$file = $_;
+	s/\.eps//;
+	@tmp = split(/_/);
+	$name{$tmp[$#tmp]} = $file;
+}
+
+# basic parameters for PostScript description file
+$u = 2.54/72;																					# PostScript unit
+$maximg = 32;																				# maximum number of plots per page
+$llx = 30; $lly = 30; $urx = 600; $ury = 800;										# PostScript Bounding Box (A4)
+$imgw = 14.5; $imgh = 11;																	# approximate size of initial image in above BB
+
+$apercu = "a_".$ARGV[0].".pdf";
+
+# loop on files
+open(OUT,">apercu.ps") || die "cannot create apercu.ps\n";
+$first = 1;
+&scale;
+
+foreach $key (reverse sort keys(%name)) {
+	open(IN,"<$name{$key}") || die "cannot open $name{$key}\n";
+	if ($first) { &write_DSC;}
+	&write_Prolog;
+	&trslt_scl;
+	&write_the_rest;
+	close(IN);
+	
+	$first = 0; $pl++;
+}
+print OUT "showpage\n";
+print OUT "grestore\n";
+print OUT '%%Trailer',"\n";
+print OUT '%%DocumentFonts: Monaco Helvetica',"\n";
+close(OUT);
+
+# produce the pdf with either pstopdf or ps2pdf
+$succ = system("pstopdf apercu.ps");
+system("ps2pdf apercu.ps apercu.pdf") if ( $succ eq "-1" );
+system("mv apercu.pdf $apercu");
+system("rm apercu.ps");
+&rm_eps;
+
+########################################
+# calculate scale to fit plots in page
+sub scale {
+	$npages = int(@files/$maximg)+1;													# number of pages
+	$pltpp = int(@files/$npages)+1;														# number of plots per page
+	# calculate scale factor of plots in page
+	$scale = 1;
+	$Nx = int(($urx-$llx)*$u/$scale/$imgw);
+	$Ny = int(($ury-$lly)*$u/$scale/$imgh);
+	
+	while ($Nx*$Ny < $pltpp) {
+		$scale = $scale - 0.025;
+		$Nx = int(($urx-$llx)*$u/$scale/$imgw);
+		$Ny = int(($ury-$lly)*$u/$scale/$imgh);
+	}
+	# calculate vignette size in PostScript units
+	$w = int($imgw/$u*$scale); $h = int($imgh/$u*$scale);
+	$interx = int(($urx-$llx - $Nx*$w)/$Nx);
+	$intery = int(($ury-$lly - $Ny*$h)/$Ny);	
+}
+########################################
+# write Document Structuring Convention (DSC)
+sub write_DSC {
+	print OUT "%!PS-Adobe-2.0\n";
+	print OUT "%%DocumentFonts: (atend)\n";
+	print OUT "%%BoundingBox: $llx $lly $urx $ury\n";
+	print OUT "%%EndComments\n";
+}
+########################################
+# read & write (for first file only) Prolog comments
+sub write_Prolog {
+	$BeginProlog = 0;
+	$EndProlog = 0;
+	while (<IN>) {
+		if (/BeginProlog/) { $BeginProlog = 1};
+		if ($first && $BeginProlog) { print OUT;}
+		if (/EndProlog/) { return;} 
+	}
+}
+########################################
+# translate and scale the plot
+sub trslt_scl {
+	$row = int($pl/$Nx)+1; $col = $pl % $Nx;
+	$x = int($llx + $col*($w+$interx));
+	$y = int($ury - $row*($h+$intery));
+
+	print OUT "\ngsave\n";
+	print OUT "0 -20 translate\n";
+	print OUT "$x $y translate\n";
+	print OUT "$scale $scale scale\n\n";	
+}
+########################################
+sub write_the_rest {
+	while (<IN>) { 
+		if (!/showpage/) { print OUT;} else { print OUT "\ngrestore\n"; return;}
+	}
+}
+########################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}
+############################################
+# delete eps files
+sub rm_eps {
+	print "Delete .eps files (y [def] OR n) ? ";
+	chop($del = <STDIN>);
+	unless ($del eq "n") {
+		@files = grep(/$ARGV[0]/ && /\.eps/, @allfiles);
+		foreach $eps (@files) { `rm $eps`;}
+	}
+}

@@ -1,0 +1,281 @@
+#!/usr/bin/perl
+########################################################
+#	This routine reads, sums and averages the ALV files
+#
+#	Usage: sum_ASC $1
+#
+#	where $1 is the directory containing the .ASC files
+#
+#	The output is a pseudo ALV file named "avrg_dirname.ASC" in the same directory
+#
+#	subs read_file & output_ASC depend on the initial data format!!
+#	HERE initial data are g(2)-1 obtained with ALV-5000 and ALV-7002
+#
+#	FS last modif 2013/06/05
+########################################################
+
+# get .ASC files in target directory
+&file_list("$ARGV[0]");
+@files = sort grep (/\.ASC/ && !/avrg/ && !/averaged/, @allfiles);
+
+# read .ASC files sequentially
+# average experimental parameters across measurements
+# output a warning if inconsistent experimental parameters
+$n = 0;
+foreach $file (@files) {
+	$source_file = $ARGV[0]."/".$file;
+	&read_file;
+	&build_test;
+	$i = 0;
+	while ($i <= $#y) {
+		$tmp[$i] = $y[$i]."\t".$tmp[$i];											# store ICF values in a string array indexed with time !
+		$i++;
+	}
+	$n++;
+}
+&test;
+
+# calculate average correlation function
+$I2 = 0;
+for ($j = 0 ; $j <= $#cIm; $j++) { $I2 += $cIm[$j]**2;}					# average squared intensity 
+$I2 = $I2/$n;
+ 
+$format = "%0.6e";
+$i = 0;
+while ($i <= $#tmp) {
+	@temp = split(/\t/,$tmp[$i]);
+	$j = 0; $ytot[$i] = 0;
+	while ($j <= $#temp) {
+		$ytot[$i] = $ytot[$i] + $temp[$j]*$cIm[$j]*$cIm[$j];			# weighted average correlation function !!!!!!!!!!!!!!!!!!!!!
+		$j++;
+	}
+	$y[$i] = $ytot[$i]/$n/$I2;
+	$y[$i] = &format($y[$i]);
+	$i++;
+}
+
+# output pseudo ALV file
+if ($mortal) { print "Cannot average files measured with different experimental conditions.\nAborted.\n"; exit;}
+@dir = split(/\//,$ARGV[0]);
+$out_file = "$ARGV[0]/avrg_$dir[$#dir].ASC";
+&output_ASC;
+
+############################################
+# check consistency of experimental parameters
+sub test {
+	$tTEMP = $tVISC = $tIm = $tMON = $sTEMP = $sVISC = $sIm = $sMON = 0;
+	for ($j = 0; $j <= $#files ; $j++) {
+		$tTEMP += $cTEMP[$j]/@files;
+		$tVISC += $cVISC[$j]/@files;
+		$tIm   += $cIm[$j]/@files;
+		$tMON += $cMON[$j]/@files;
+	}
+	for ($j = 0; $j <= $#files ; $j++) {
+		$sTEMP += ($cTEMP[$j]-$tTEMP)**2/@files;
+		$sVISC += ($cVISC[$j]-$tVISC)**2/@files;
+		$sIm += ($cIm[$j]-$tIm)**2/@files;
+		$sMON += ($cMON[$j]-$tMON)**2/@files;
+	}
+	$sTEMP = sqrt($sTEMP);
+	$sVISC = sqrt($sVISC);
+	$sIm = sqrt($sIm);
+	$sMON = sqrt($sMON);
+		
+	$j=1;
+	while ($j <= $#files) {
+		$test_ang = (abs($cANG[$j-1] - $cANG[$j]) > 0.01);
+		$test_wave = ($cWAVE[$j-1] != $cWAVE[$j]);
+		$test_indx = ($cINDX[$j-1] != $cINDX[$j]);
+		$test_dur = ($cDUR[$j-1] != $cDUR[$j]);
+
+		if ($test_ang || $test_wave || $test_indx || $test_dur) {
+			$mortal = 1;
+			open(OUT,">>$ARGV[0]/warning") || die "cannot open warning for output !";
+			@splt1 = split(/\//,$files[$j-1]);
+			@splt2 = split(/\//,$files[$j]);
+			$prefix = "In files $splt1[$#splt1] and $splt2[$#splt2] ";
+			if ($test_ang) { print OUT $prefix."angles are different !\n";}
+			if ($test_wave) { print OUT $prefix."wavelengths are different !\n";}
+			if ($test_indx) { print OUT $prefix."refraction indices are different !\n";}
+			if ($test_dur) { print OUT $prefix."durations are different !\n";}
+			close OUT;
+		}
+		$j++;
+	}
+	$j=0;
+	while ($j <= $#files) {
+		$test_visc = (abs($tVISC-$cVISC[$j]) >= 3*$sVISC);
+		$test_temp = (abs($tTEMP-$cTEMP[$j]) >= 3*$sTEMP);
+		$test_int = (abs($tIm-$cIm[$j]) >= 3*$sIm);
+		$test_mon = (abs($tMON-$cMON[$j]) >= 4*$sMON);
+	
+		if ($test_visc || $test_int || $test_temp || $test_mon) {
+			open(OUT,">>$ARGV[0]/warning") || die "cannot open warning for output !";
+			@splt = split(/\//,$files[$j]);
+			if ($test_temp) { print OUT  "In file $splt[$#splt] temperature is deviant !\n";}
+			if ($test_visc) { print OUT "In file $splt[$#splt] viscosity is deviant !\n";}
+			if ($test_int) { print OUT "In file $splt[$#splt] intensity is deviant !\n";}
+			if ($test_mon) { print OUT "In file $splt[$#splt] monitor diode value is deviant !\n"; $mortal = 1;}
+			close OUT;
+		}
+		$j++;
+	}
+}
+############################################
+# build test to check consistency of experimental parameters
+sub build_test {
+	$cTEMP[$n] = $TEMP;
+	$cANG[$n]  = $ANG;
+	$cVISC[$n] = $VISC;
+	$cINDX[$n] = $INDX;
+	$cWAVE[$n] = 1*$WAVE;
+	$cIm[$n]   = $Im;
+	$cDUR[$n]  = $DUR;
+	$cMON[$n] = $MON;
+}
+####################################
+# read ASCII file saved by software on ALV-5000 and ALV-7002
+# extension .ASC added automatically
+# data are t, g(2)(t)-1
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ######  DO NOT ALTER THE ORDER OF THE VARIOUS TESTS !!!   #########
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sub read_file {
+	open(FILE_IN, "<$source_file") || die "cannot open $source_file ! ";		
+	$output = 0;
+	$i = 0;$j = 0;
+	while (<FILE_IN>) {
+		s/\r//g; s/\n//g;																	# Windows LF + CR !! 
+		if (/Temp/) {	# temperature
+			@item = split(/ [ ]*/);
+			$TEMP = @item[$#item];}
+
+		if (/Ang/) {	# angle
+			@item = split(/ [ ]*/);
+			$ANG = @item[$#item];}
+
+		if (/Visc/) {	# viscosity
+			@item = split(/ [ ]*/);
+			$VISC = @item[$#item];}
+
+		if (/Refr/) {	# refractive index
+			@item = split(/ [ ]*/);
+			$INDX = @item[$#item];}
+
+		if (/Wave/) {	# wavelength
+			@item = split(/ [ ]*/);
+			$WAVE = @item[$#item];}
+
+		if (/Duration/) {	# duration
+			@item = split(/ [ ]*/);
+			$DUR = @item[$#item];}
+
+		if (/Rate/) {	# mean count rate
+			$output = 2;} # end of correlation data block, begin of intensity trace
+			
+		if (/Diode/) {	# diode monitor
+			@item = split(/ [ ]*/);
+			$MON = @item[$#item];
+			$output = 3;} # end of intensity data block
+
+		if ($output == 1) {	# inside data block
+			$format="%0.6e";					# format imposed by CONTIN 
+			@item = split(/ [ ]*/);				# @item = {time,g(2)-1)}
+			if ($item[1]) {
+				$t[$i] = &format($item[1]/1000); 		# convert ms to s, then FORTRAN notation
+				if (@ARGV[1]==2) {$item[2]+=1;}	# back to g(2)(t) ! 
+				$y[$i] = &format($item[2]);
+				$npt=$i;
+			}									# count nb of rows
+			$i += 1;}
+			
+		if ($output == 2) {	#	inside intensity trace data
+			@item = split(/ [ ]*/);
+			if ($item[2]) {
+				$tT[$j]=$item[1];
+				$yT[$j]=$item[2];
+				$j+=1;
+			}
+		}
+		
+		if (/Cor/) {$output = 1;}	# begin of data block
+	}
+ 	close(FILE_IN);
+ 	
+ 	# calculate average intensity and standard deviation :
+ 	$i = $Im = 0;
+	while ($i <= $#yT) {
+		$Im += $yT[$i];
+		$i++;
+	}
+	$Im = $Im/$i;
+	$i = $dIm = 0;
+	while ($i <= $#yT) {
+		$dIm += ($yT[$i]-$Im)**2;
+		$i++;
+	}
+	$dIm=sqrt($dIm/$i);
+}
+############################################
+# produce a pseudo ALV file
+sub output_ASC {		
+	open(FILEOUT, ">$out_file") || die "cannot open $out_file ! ";
+	if ($MON) { print FILEOUT "ALV-7002/USB-25\n";} else { print FILEOUT "ALV-5000/E-WIN Data\n";}
+	print FILEOUT qq(Date :	""\n);
+	print FILEOUT qq(Time :	""\n);
+	print FILEOUT qq(Samplename : 	"average_$dir[$#dir]"\n);
+	print FILEOUT qq(SampMemo(0) : 	""\n);
+	print FILEOUT qq(SampMemo(1) : 	""\n);
+	print FILEOUT qq(SampMemo(2) : 	""\n);
+	print FILEOUT qq(SampMemo(3) : 	""\n);
+	print FILEOUT qq(SampMemo(4) : 	""\n);
+	print FILEOUT qq(SampMemo(5) : 	""\n);
+	print FILEOUT qq(SampMemo(6) : 	""\n);
+	print FILEOUT qq(SampMemo(7) : 	""\n);
+	print FILEOUT qq(SampMemo(8) : 	""\n);
+	print FILEOUT qq(SampMemo(9) : 	""\n);
+	print FILEOUT qq(Temperature [K] :	 $tTEMP\n);
+	print FILEOUT qq(Viscosity [cp]  :	 $tVISC\n);
+	print FILEOUT qq(Refractive Index:	 $INDX\n);
+	print FILEOUT qq(Wavelength [nm] :	 $WAVE\n);
+	print FILEOUT qq(Angle [°]       :	 $ANG\n);
+	print FILEOUT qq(Duration [s]    :	 $DUR\n);
+	print FILEOUT qq(Runs            :	         1\n);
+	print FILEOUT qq(Mode            :	"SINGLE AUTO CH0 "\n);
+	print FILEOUT qq(MeanCR0 [kHz]   :	 $tIm\n);
+	print FILEOUT qq(MeanCR1 [kHz]   :	       0.00000\n);
+	print FILEOUT qq(\n"Correlation"\n);
+	$i = 0;
+	while ($i <= $#y) {
+		print FILEOUT "  ",$t[$i]*1000,"\t  $y[$i]\n";
+		$i++;
+	}
+	print FILEOUT qq(\n"Count Rate"\n);
+	$i = 0;
+	while ($i <= $#yT) {
+		$Is=$tIm+$dIm*2*(rand()-0.5);
+		print FILEOUT "     $tT[$i]\t  $Is\n";
+		$i++;
+	}
+	if ($tMON) {print FILEOUT "\nMonitor Diode  $tMON\n";}	
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form=sprintf $format,abs($f);
+	$form=~s/\.//;
+	$form=~s/e/E/;
+	if ($f>=0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop($interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+####################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}
+

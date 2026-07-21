@@ -1,0 +1,598 @@
+% edit: 20180417
+\documentclass{article}
+
+\usepackage{xr}
+\externaldocument[S]{supporting_information}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx, subcaption}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{cite}
+
+\usepackage{setspace}
+\doublespacing
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\interfootnotelinepenalty=10000
+\date{}
+\begin{document}
+
+\title{Rapid and quantitative de-\emph{tert}-butylation for poly(acrylic acid) block copolymers and
+influence on relaxation of thermoassociated transient networks}%$^\dag$}
+\maketitle
+\noindent\large{Alexei D. Filippov\textit{$^a$}, Ilse A. van Hees$^a$, Remco Fokkink$^a$, Ilja Voets\textit{$^b$} and Marleen Kamperman\textit{$^{a\ast}$}} \\%Author names go here instead of "Full name", etc.
+
+\footnotetext{\textit{$^{a}$~Laboratory of Physical Chemistry and Soft Matter, Wageningen University \& 
+Research, Stippeneng 4, 6708WE Wageningen, The Netherlands }}
+\footnotetext{\textit{$^{b}$~Institute for Complex Molecular Systems, Eindhoven University of Technology,
+P.O. box 513, 5600 MB Eindhoven, The Netherlands}}
+\footnotetext{\textit{$^\ast$~Corresponding author, Tel: +31 317 482 358; E-mail: marleen.kamperman@wur.nl}}
+
+\section*{Abstract}
+The synthesis of charged polymers often requires the polymerization of protected monomers, followed by 
+a polymer-analogous reaction to the polyelectrolyte product. We present a mild, facile method 
+to cleave \emph{tert}-butyl groups from poly(\emph{tert}-butyl acrylate) blocks that yields
+poly(acrylic acid) (pAA) blocks free of traces of the ester. The reaction utilizes a slight excess of HCl
+in hexafluoroisopropanol (HFIP) at room temperature, and runs to completion within four hours. We compare deprotection
+in HFIP with the common TFA/DCM method, and show that the latter does not yield clean pAA. We show the effect
+of complete \emph{tert}-butyl cleavage on a ABA triblock copolymer, where poly(\emph{N}-
+isopropylacrylamide) (pNIPAM) is A and pAA is B, by means of viscosimetry, DLS and SAXS 
+on solutions above overlap. The pNIPAM blocks dehydrate, and their increased self-affinity above the 
+lower critical solution temperature (LCST) results in network formation by the triblocks.
+This manifests itself as an increase in viscosity and a slowing-down of the first-order correlation
+function in light scattering. However, this stickering effect manifests itself exclusively when 
+the pAA block is \emph{tert}-butyl-free. Additionally, SAXS shows that the conformational 
+properties of \emph{tert}-butyl free pAA copolymers are markedly different from those with 
+residual esters. Thus, we illustrate a surprising effect of hydrophobic impurities that acts
+across blocks, and assert the usefulness of HCl/HFIP in pAA synthesis.\\
+
+\section*{Introduction}
+Acrylic acid (AA) is the smallest unsaturated carboxylic acid, and can be polymerized radically. By virtue of the 
+carboxylic moiety, the resulting polymers are polyelectrolytes and have a pH-dependent charge and H-bonding capacity. 
+In copolymers, AA is used to tailor responsive behavior of other polymeric building blocks, 
+such as the swelling of hydrogels \cite{Lue2011, Yoo2000} and the lower critical solution temperature (LCST) 
+of poly(\emph{N}-isopropylacrylamide) (pNIPAm) and its copolymers. \cite{Bokias2000} pAA is one of the most studied
+polyanions in polyelectrolyte complexes, owing to its ability to form complexes with many polycations. 
+\cite{Blocher2017, Liu2017}
+
+In radical polymerizations, acrylic acid is unusually inclined to transfer reactions to solvent \cite{Loiseau2003a}, 
+transfer to polymer \cite{Lena2017}, and formation of Michael dimers \cite{LLauro2004}. These side reactions result in diminished control 
+over linearity, molecular weight distribution, and end-group fidelity of the polymer products \cite{Maniego2013, LLauro2004}. There are many
+reports that detail pAA synthesis with the help of controlled radical polymerization (CRP) techniques, in particular reversible addition-fragmentation 
+chain transfer \cite{Pelet2012, Loiseau2003a, Chaduc2013} (RAFT). Chain transfer agents are known to reduce branching and termination by ensuring 
+a low concentration of active radicals \cite{Lena2017}. Nonetheless, it is difficult to prepare strictly linear polymers directly from AA
+due to its high rate and extensive repertoire of side reactions, and branching is often overlooked in reports on poly(acrylic acid). \cite{Loiseau2003a, LLauro2004} 
+Given the difficulties of direct polymerization of AA, pAA is often made in a two-step process starting from a precursor monomer that is less affected 
+by transfer reactions, followed by a polymer-analogous reaction that yields pAA. 
+
+A canonical two-step method relies on the ester of acrylic acid and \emph{tert}-butanol, the latter acting analogously to a protecting group. 
+\emph{tert}-Butyl acrylate ({t}BuAc) can be polymerized by anionic or radical means, and the resulting polymer is deesterified into pAA under acidic conditions,
+trifluoroacetic acid in DCM (TFA/DCM) being especially common. \cite{Dulong2015, Yong2016, Chen2013a, Li2006, Li2008a, Lauber2017} 
+However, even a strong molar excess yields pAA with at most 99.5\% liberated 
+carboxylic acid, the rest being still esterified with 
+\emph{tert}-butanol.\cite{Loiseau2003a, Chen2013a}  The 
+incomplete cleavage remains unaddressed, even though residual \emph{tert}-butyl groups 
+can affect polymer properties. Foreseeable effects are an increase of surface pressure at water-apolar interfaces and a greater tendency to 
+form complexes through hydrophobic interactions, since the resulting structures are comparable to hydrophobically modified pAA. Thus, a means 
+of obtaining ester-free pAA from p\emph{t}BuAc is desirable.
+
+In the present work, we report a cleavage reaction that yields quantitatively de-\emph{
+tert}-butylated pAA rapidly, based on the work of 
+Palladino and co-workers \cite{Palladino2012}. We apply the method to the synthesis of a 
+triblock copolymer with a monomer that is representative \cite{Lue2011, Schilli2004a}
+of the use of pAA in literature, poly(\emph{N}-iso\-propyl\-acryl\-amide) (pNIPAm). Full 
+\emph{tert}-butyl ester cleavage is shown
+by NMR. To assert the necessity of complete deprotection of poly(\emph{tert}-butyl acrylate) precursors, we show that the ubiquitous 
+TFA/DCM conditions yield polymers with markedly distinct flow and conformational properties, as witnessed by viscosity,
+dynamic light scattering (DLS) and small-angle X-ray scattering measurements (SAXS).
+
+\section*{Experimental section}
+\textbf{Materials}
+2,2'-Azobis(2-methylpropionitrile) (AIBN, 98\%), \emph{N}-iso\-propyl\-acryl\-amide (NIPAm,  97\%), \emph{tert}-butyl acrylate (\emph{t}BuAc, 
+contains 10-20 ppm mono\-methyl ether hydro\-quinone as inhibitor, 98\%), trioxane ($\geqslant$99.9\%), tri\-fluoro\-acetic acid (TFA $\geqslant$99\%), 
+concentrated HCl (37\% solution in water), and dioxane (anhydrous, 99.8\%) were obtained from Sigma-Aldrich, Germany, and used without further purification 
+unless noted otherwise. NIPAm was recrystallized twice from a mixture of hexane and acetone. \emph{t}BuAc was passed over a short column of Al$_2$O$_3$ to
+remove the inhibitor. AIBN was recrystallized thrice from MeOH. Bis(2-methylpropionic acid)trithiocarbonate \cite{Lai2002a, Cetintas2017} (BMAT) and
+pNIPAm-BMAT \cite{Cetintas2017} were synthesized as described in literature.
+Hexafluoroisopropanol (HFIP, AR), dichloro\-methane (DCM, AR), tetra\-hydro\-furan (THF, HPLC-grade), and meth\-anol (MeOH, HPLC) were 
+obtained from Biosolve, France.
+
+\textbf{Synthesis of pNIPAm-\emph{b}-p\emph{t}BuAc-BMAT}
+A Schlenk flask was charged with a solution of pNIPAm$_\mathrm{24}$-BMAT (0.581 g, 0.104 mmol), \emph{t}BuAc (5.3 g, 41.4 mmol), 
+AIBN (3.4 mg, 0.020 mmol) and trioxane (0.372 g, 4.14 mmol) in dioxane (21 mL), and was subjected
+to five freeze-pump-thaw cycles. The solution was magnetically stirred at 70 $^\circ \mathrm{C}$ for 45 min, 
+after which the polymerization was stopped by admitting atmosphere into the flask while cooling on an ice bath.
+The material was precipitated thrice in ice-cold MeOH:water 3:1 and dried under high vacuum.
+
+\textbf{TFA/DCM deprotection of pNIPAm-\emph{b}-p\emph{t}BuAc-BMAT}
+pNIPAm-\emph{b}-p\emph{t}BuAc-BMAT (1.05 g, 0.023 mmol) was dissolved in DCM (50 mL) in a round-bottomed flask, 
+to which was added 6 equivalents of TFA (4.2 g, 39 mmol) with respect to the amount of \emph{t}Bu units.
+The mixture was stirred for 72 h at room temperature, the precipitated product was washed with fresh DCM,
+and extensively dried under high vacuum. The dry polymer was dispersed in water by sonication and 
+titrated with an NaOH solution until the solution was neutral. Water was removed by freeze drying.
+This yielded the (pAA-\emph{co}-p\emph{t}BuAc)-\emph{b}-pNIPAm-BMAT as a white, fluffy powder.
+
+\textbf{HCl/HFIP deprotection of pNIPAM-\emph{b}-p\emph{t}BuAc-BMAT}
+pNIPAm-\emph{b}-p\emph{t}BuAc-BMAT (3.5 g, 0.093 mmol) was dissolved in HFIP (314 mL) in a round-bottomed flask,
+to which concentrated HCl 37\% (2.6 mL, 31.4 mmol) was added, 1.3 equivalents with respect to 
+the amount of \emph{t}Bu units. After 4 h, the mixture was stripped of volatiles and the dry polymer was dispersed in 
+water and titrated with an NaOH solution until the solution was neutral. A slight cloudiness was removed by
+centrifugation at 15000g, and the supernatant was dehydrated by freeze drying. pAA-\emph{b}-pNIPAm-BMAT was
+recovered as a white fluffy powder.
+
+\textbf{Polymer characterization}
+$^1$H- and $^{13}$C-NMR measurements were performed on a Bruker AVANCE 400 spectrometer. 
+Fourier transform infrared absorption spectra were collected on a Bruker PLATINUM ATR mounted into a TENSOR
+spectrometer on powdered sample. A background was taken and subtracted from the spectra, followed by
+baseline correction and transformation from transmission to absorption.
+
+\textbf{Size-exclusion chromatography}
+Size exclusion chromatography (SEC) 
+of pNIPAm and its copolymers with p\emph{t}BuAc was done on a Agilent 1200 
+HPLC equipped with a PLgel $5 \mathrm{\mu m}$ 
+Mixed-D column with RI detection, calibrated with poly(styrene) standards, and HPLC-grade 
+THF as eluent. The presence of pNIPAm blocks complicates the analyses due to 
+column-analyte interactions. The problem is somewhat remedied by in an 
+aqueous SEC system on corresponding de-\emph{tert}-butylated products. Aqueous size 
+exclusion chromatography of pAA copolymers was done in an aqueous buffer of 
+0.01 M Na$_2$HPO$_4$/NaH$_2$PO$_4$ with 0.1 M NaNO$_3$ on an Agilent 1260 Infinity 
+II HPLC equipped with a Waters Ultrahydrogel500 column for molecular weight analysis. 
+
+\textbf{Trithiocarbonate cleavage with hydrazine}
+In adaptation of a previous report,\cite{Shen2010}  
+sodium salt of triblock pNIPAm-\emph{b}-pAA-BMAT (0.100 g, 3.34 $\mathrm{\mu}$mol of
+trithiocarbonates) was dissolved in water (11 mL), to which was added 5 equivalents of
+hydrazine (1 $\mathrm{\mu}$L, 16.7 $\mathrm{\mu}$mol). The mixture was stirred at room temperature
+for 72 h, and an aliquot was diluted 1:3 with 0.01 M Na$_2$HPO$_4$/NaH$_2$PO$_4$ with
+0.1 M NaNO$_3$, which was analyzed with SEC over an Agilent PL AquaGel-OH 8 $\mathrm{\mu}$m column
+and compared with an aliquot of non-treated sample.
+
+\textbf{DLS of triblock solutions}
+DLS measurements on triblock networks were performed in the manner described by
+Bohdan et al.\cite{Bohdan2016} An ALV light scattering apparatus 
+equipped with a 632.8 nm JDSU 1145P laser and a LSE-5004 correlator was used. Temperature was 
+controlled by means of a Julabo water bath. DLS measures the electric field autocorrelation function 
+$g_2(t) = {\langle I(0)I(t) \rangle}/{\langle I^2 \rangle}$, from which the normalized 
+first-order correlation function $g_1(t)$ is obtained:
+\begin{equation}
+g_1(t) = \beta^{-1/2}\sqrt{g_2(t) - 1}
+\end{equation}
+in which $\beta$ is a geometry-dependent constant close to unity. We describe 
+$g_1(t)$ by a two-mode stretched exponential decay:
+\begin{equation} \label{eqn:bistrexp}
+g_1(t) = \sum\limits_{i=f,s}A_i\exp(-\frac{t^\alpha_i}{\tau_i})
+\end{equation}
+where $\tau$ is the exponential decay time and $\alpha$ is the stretch parameter. The latter
+characterises the width of the decay time distribution, with $\alpha_i=1$ corresponding to
+a simple exponential decay and smaller values to a more stretched shape, and thus a broader
+decay time distribution. The subscripts $f$ and $s$ refer to, respectively, the fast and
+slow modes that we observe for all relaxations.\cite{Thuresson1999} 
+
+Samples were made by addition of 1 mL water to 292 mg of polymer, and were filtrated over 
+0.2 $\mathrm{\mu m}$ regenerated cellulose (RC) syringe filters after dissolution. 
+Correlation curves were recorded for times between 3000 and 10000 s to ensure full 
+decay of $g_1(t)$, with higher temperatures resulting in slower decays.
+
+\textbf{Rheology of triblock solutions}
+Rheological measurements were recorded on an Anton Paar MCR-301, using a 1 mL Couette geometry and temperature
+control by a Peltier system. Evaporation was avoided by the use of a tetradecane-filled solvent trap. Viscosities
+were measured by monitoring stress as a function of shear rate between 0.01 and 1000 $\mathrm{s}^{-1}$.
+
+\textbf{Small-angle X-ray scattering of triblock solutions}
+Small-angle X-ray scattering experiments were performed on a SAXSLAB Ganesha 300 XL set-up with a 
+GeniX-Cu ultra low divergence source with a wavelength of 1.54 \AA$^{-1}$ and a flux of 
+10$^8$ $s^{-1}$,
+and a Pilatus 300K silicon pixel detector with 487x619 pixels of 172x172 $\mu \mathrm{m}^
+2$. Temperature was controlled
+between 20 and 60 $^\circ\mathrm{C}$ with a Julabo temperature controller. Three 
+detector distances were used,
+resulting in a $q$-range of 0.001 to 2 \AA$^{-1}$. Aqueous 292 mg mL$^{-1}$ 
+samples were introduced into 
+2 mm quartz capillaries, heated to 60 $^\circ\mathrm{C}$, equilibrated for 2 hours, then 
+measured for 1800s at three different detector
+distances. This was repeated for 40 and 20 $^\circ\mathrm{C}$. The diffraction patterns 
+were azimuthally averaged
+and intensities were corrected for transmission, sample thickness and detector distance. 
+Finally, scattering from water-filled capillaries corrected in the same fashion was
+subtracted from the scattering of triblock solutions.
+
+\section*{Results and discussion}
+We prepare pNIPAm-\emph{b}-pAA-\emph{b}-pNIPAm (NAN) triblock copolymers 
+from pNIPAm-\emph{b}-\emph{t}BuAc-\emph{b}-pNIPAm (NTN) precursors, as 
+shown in Figure \ref{syn-pNAN}, and further detailed in the Supporting Information 
+(Figures \ref{Ssyn:pNBN}$^\dag$,\ref{Snmr:pNBN-short}$^\dag$). One common \emph{t}Bu-carrying precursor 
+N$_\mathrm{24}$-T$_\mathrm{330}$-N$_\mathrm{24}$, where N$_\mathrm{24}$ denotes a 
+pNIPAm block length of 24 monomers and $T_\mathrm{330}$ denotes a p\emph{t}BuAc 
+block length of 330 monomers, serves to compare two acidic ester cleavage reactions: 
+stirring with 6 equivalents of TFA in DCM for 72h and with 1.3 equivalents of HCl in HFIP for 4h. 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.95\linewidth]{syn-pNAN-complete.pdf}
+\caption{Acidic de-\emph{tert}-butylation of the poly(\emph{tert}-butyl acrylate) block in an ABA 
+copolymer with poly(\emph{N}-isopropylacrylamide) using (left) TFA in DCM and (right) dilute 
+stoichiometric HCl in HFIP. Characteristic degrees of \emph{t}-butoxy group removals are given as 
+percentages. \label{syn-pNAN}} 
+\end{figure}
+
+NMR spectroscopy on aliquots from the reaction mixtures in MeOD shows
+resonances characteristic of the NIPAm pendant groups at 1.16 and 3.97 ppm, as seen
+in the NMR spectra of Figure \ref{nmr-pNAN}a. Contributions of the \emph{t}Bu peak appear
+at 1.47 and 1.48 ppm, as the dominant peak in NTN precursor,
+and as a well-noticeable contribution for the TFA-deprotected NAN, even after 72h. 
+Contrarily, in the HCl-treated case, the residual \emph{t}Bu peak is sufficiently 
+small to be indistinguishable from the tacticity features of the backbone protons, which 
+are well-resolved in MeOD. In Figure \ref{nmr-pNAN}b, the resonances of backbone
+and \emph{t}Bu are enlarged, robustly confirming the disappearance of the latter in the 
+case of HCl/HFIP after 3h with respect to the tacticity features. 
+We note that the often-used D$_2$O does not provide an adequate environment for the 
+\emph{t}Bu groups to give a sharp signal, and thus leads one to underestimate its presence. 
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{Spectral-data-final.pdf}
+\caption{(a) $^\mathrm{1}$H-NMR spectra of MeOD solutions of a (top) \emph{t}BuAc 
+copolymer with pNIPAm, 
+(middle) product of deprotection with 6 eq. TFA in DCM, and (bottom) crude sample of deprotection 
+mixture with 1.3 eq. HCl in HFIP. (b) Enlarged regions of crude samples in MeOD of deprotection with
+TFA in DCM after 72h and with HCl in HFIP after 0.5h, 1h, 3h and 4h. Note that the HCl/HFIP spectra
+are inflated eight times with respect to the TFA/DCM spectrum, after normalization to 
+the pNIPAm methine
+peak at 3.9 ppm. (c) Deconvolution of a spectrum taken on the deprotection in HCl/HFIP 
+after 0.5h. The components corresponding to \emph{tert}-butyl protons are filled. \label{nmr-pNAN}}
+\end{figure}
+
+Deconvolution of the spectra between 1.4 and 1.8 ppm allows to separate the \emph{t}Bu 
+contribution from the
+backbone singlets by fitting each peak with a Gaussian-Lorentzian function. Figure \ref{nmr-pNAN}c 
+shows a representative case. 
+A comparison of the \emph{N}-isopropyl methine signal at 3.97 ppm to the \emph{t}Bu 
+contribution at 1.47 ppm gives the deprotection efficiency $\phi_{D}$ according to
+
+\begin{equation}
+\phi_D=1-\frac{\frac{1}{9}A_{t\mathrm{Bu}}}{A_{Ni\mathrm{m}}}\frac{\mathrm{DP}_\mathrm{N}}{\mathrm{DP}_\mathrm{T}}
+\end{equation}
+
+where $A_{t\mathrm{Bu}}$ and ${A_{Ni\mathrm{m}}}$ are the integrals under the 
+deconvoluted \emph{t}Bu contributions and the
+\emph{N}-isopropyl methine signals, and $\mathrm{DP}$ is the degree of polymerization of 
+the block denoted in subscript.
+This procedure thus provides accurate values for $\phi_{D}$, even in cases where the area under the 
+\emph{t}Bu region is dominated by backbone signals.
+
+We speculate that the inferior ability of TFA/DCM to cleave \emph{t}Bu esters and the 
+rather high irreproducibility 
+of $\phi_\mathrm{D, TFA/DCM}$ is related to inaccessibility of TFA to the reaction sites 
+as the reaction nears completion. 
+In the course of the first hour, the partially cleaved pAA-rich structures precipitate 
+from the mixture and adhere to the reactor wall, likely preventing
+an efficient access of TFA to the last few groups. In addition, carboxylates form dimers 
+in apolar environments \cite{Fujii1988},
+and therefore the TFA is possibly deactivated by complexation to the polymeric carboxyl 
+groups that become progressively
+available throughout the reaction. In contrast, HFIP dissolves all starting materials, 
+intermediates and the product
+of the deprotection. HCl is a non-carboxyl acid, and does not form carboxyl dimers. In 
+short, both the improved solubility 
+of the substrate and availability of de-\emph{tert}-butylation agent favor HCl/HFIP as a
+means to synthesize pAA from p\emph{t}BuAc.
+
+Given the improved rate and extent of the reaction, we strongly recommend deprotection 
+with HCl/HFIP above TFA/DCM, with deprotection efficiencies of $>$99.9\% for HCl/HFIP 
+and 90-98\% for TFA/DCM. We summarize the deprotection efficiencies 
+$\phi_{D}$ of the two methods in Table \ref{tab:results}, $\phi_{D}$. 
+The entries marked with an asterisk are used for a comparison
+of flow properties and DLS relaxation times (\emph{vide infra}). Additionally, 
+Table \ref{tab:results} shows deprotection and aqueous SEC characterization data for runs on 
+further NAN structures with slightly varied block lengths. FT-IR data are given 
+in Supporting Information (Figure \ref{Sfig:ir}$^\dag$).
+
+We use aqueous SEC to confirm the triblock identity of our compounds, and therefore the 
+stability of the trithiocarbonate 
+bond under conditions of deprotection and subsequent hydrolysis. We find similar values 
+of $M_{n}$ for both TFA- and HCl-deprotected
+species, as can be seen in Table \ref{tab:results}. Additionally, we intentionally 
+cleaved a sample of N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$
+using hydrazine\cite{Shen2010}. Treatment with hydrazine resulted in a discoloration of 
+the sample and a reduction of $M_{n}$ by a factor
+of two, as shown in Figure \ref{Sfig:aqs04}$^\dag$. Thus, the triblocks are quantitatively cleavable, 
+which shows that the trithiocarbonate is stable, even after deprotection and neutralization to pH 7.
+
+\begin{table}
+\centering
+\caption{Molecular weights and deprotection efficiencies of NAN copolymers. 
+Block lengths are based on theoretical molecular weight $M_{th}$ that is based on 
+monomer conversion. 
+$M_n$ and $D$ are calculated from SEC traces after elution in 
+0.01 M aqueous phosphate buffer at pH 7 with 0.1 M NaNO$_3$. Entries marked with an 
+asterisk are used further on in a comparative study of flow behavior, DLS relaxation times and SAXS.}
+\begin{tabular}{lllllll}
+\toprule
+&Polymer structure 	&$M_{th}$ (kDa) & $M_{n}$  (kDa)&		$D$&		Treatment&	$\mathrm{\phi}_\mathrm{D}$\\
+\midrule
+&N$_\mathrm{26}$-(A$_\mathrm{312}$-T$_\mathrm{5}$)-N$_\mathrm{26}$	&	29.0	&	14.5		&	1.47		&TFA 6 eq	&	98.4\% \\
+&N$_\mathrm{25}$-A$_\mathrm{362}$-N$_\mathrm{25}$							&	32.5	&	29.0	&	1.52	&HCl 1.2 eq&	$>$99.9\% \\
+&N$_\mathrm{36}$-A$_\mathrm{220}$-N$_\mathrm{36}$			&	24.3	&	26.8		&	1.59	&HCl 1.0 eq 		&		$>$99.9\% \\
+\textbf{*}&N$_\mathrm{24}$-(A$_\mathrm{297}$-T$_\mathrm{33}$)-N$_\mathrm{24}$	&	29.5	&	47.4		&	1.37		&TFA 6 eq	&	90.1\%	\\
+\textbf{*}&N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$							&	29.2	&	44.7		&	1.43		&HCl 1.3 eq&$>$99.9\%	\\
+\bottomrule
+\end{tabular}
+
+\label{tab:results}
+\end{table}
+
+Literature abounds with reports on properties of pAA (co)polymers derived
+from p\emph{t}BuAc \cite{Chen2013a, Maniego2017}. 
+We now turn to the question whether \emph{tert}-butyl moieties influence the solution 
+properties of our copolymers strongly, even when present at the level we found for TFA/DCM. To this 
+end, we studied the difference in the DLS relaxation time and viscosity of aqueous solutions above 
+overlap between triblocks cleaved with TFA and HCl, derived from a common NBN precursor, 
+N$_\mathrm{26}$-T$_\mathrm{318}$-N$_\mathrm{26}$. A common NTN precursor ensures a constant 
+chain length between the two polymers. The NTNs employed in the comparison are labelled with an asterisk in Table \ref{tab:results}.
+In addition, SAXS was used to inquire into structural differences in HCl/HFIP and TFA/DCM products. Additionally,
+we compared two HCl-deprotected structures of different block lengths, N$_\mathrm{36}$-A$_\mathrm{220}$-N$_\mathrm{36}$
+and N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$. 
+
+At a weight concentration of 292 mg mL$^{-1}$ without added salt, all polymers dissolved within two 
+days on a shaking bench. Based on an estimate for $R_G$ of 5 nm taken from DLS measurements of 
+dilute solutions at high salt (data not shown), the overlap concentration is below 
+90 mg mL$^{-1}$ for both 
+NANs in demineralized water. Thus, our solutions strongly exceed overlap.
+When heated to 60 $^\circ\mathrm{C}$, which is well above the bulk LCST for 
+pNIPAm homopolymer around 32 $^\circ \mathrm{C}$, both solutions remain transparent. This is
+in marked contrast to the rapid increase in turbidity that is observed for diblock solutions 
+with a charged block and an LCST block, where the turbidity increase is attributed to 
+formation of micelles due to the association
+of pNIPAm blocks above the LCST. \cite{Schilli2004a, Chen2013a, Bayati2012} We note that our 
+samples show no macroscopic phase separation, in contrast to solutions of pNIPAm homopolymer 
+\cite{Heskins1968}, copolymers\cite{Teodorescu2010a}, and derived hydrogels.\cite{Gan2010}
+We remind the reader than pNIPAm and pAA form complexes at a pH far lower than of these samples. 
+Indeed, the solubility of our structures is wholly consistent with the complete deprotonation 
+of pAA at neutral pH.\cite{Schilli2004a} 
+
+We note that the mode of association of \emph{t}Bu-free NAN triblocks above overlap
+is \emph{not} related to micelle formation, as is reported for telechelic polymers 
+with far longer stickers.\cite{DeGraaf2011, McCormick2008, Kirkland2008, Lin2013a} 
+The HCl-cleaved NAN solutions remain transparent even after being 
+heated to 60 $^\circ\mathrm{C}$ for three days, and show a decrease in scattering 
+intensity at 90$^\circ$ when 
+heated to 40 and 60 $^\circ \mathrm{C}$ (Figure \ref{Sdls:CRs}$^\dag$), precluding micellization.
+Under identical conditions, the TFA-cleaved samples develop some turbidity 
+and show occasional spikes in scattering intensity. DLS measurements on dilute (5 mg mL$^{-1}$)
+NAN solutions show no changes in count rate or correlation times 
+upon heating from room temperature to 60 $^\circ\mathrm{C}$, and thus show no 
+evidence of micellization, due to the very short sticker length and high osmotic pressure 
+due to the charged blocks.
+
+\begin{figure}
+\centering
+\begin{subfigure}[t]{.49\textwidth}
+\includegraphics[width=.99\linewidth]{ABARHE02-LF37-LF38-viscosities-only-eta.pdf}
+\end{subfigure}
+\caption{(a) Shear rate-dependent viscosity of 292 mg mL$^{-1}$ solutions of triblocks prepared
+with TFA (squares) and HCl-derived (circles) at 15 $^\circ\mathrm{C}$ (blue) and 60 $^\circ\mathrm{C}$ (red).
+\label{fig:rheo}}
+\end{figure}
+
+When heated from 15 to 60 $^\circ\mathrm{C}$, a 292 mg mL$^{-1}$ solution of the HCl batch shows a strong increase in viscosity, 
+whereas none is visually distinguishable in the TFA batch. This behavior is quantified in Figure \ref{fig:rheo} 
+(left) by means of rotational rheology in a Couette geometry, where we plot the shear-rate dependent 
+viscosity for both HCl and TFA-derived NAN at identical degree of polymerization, at temperatures significantly lower and
+significantly higher than the LCST. All viscosity curves are characterized
+by a wide Newtonian range, and the Newtonian viscosity of the sample increased 70-fold 
+in the HCl batch, whereas for the case of TFA the increase is marginal. 
+
+We stress that our solutions, upon heating, neither undergo a macroscopic phase 
+transition nor have a cloud point. We merely perceive the effect of the collapse of pNIPAm above 
+its LCST through observing the slowed-down relaxation of a transient network. Exactly 
+the unchanged transparency and volume of the samples allowed us to 
+employ DLS to study differences in 
+relaxation times between the two solutions above overlap, below and above the bulk pNIPAm LCST. 
+In Figure \ref{fig:dls}(a), we show averaged first-order normalized correlation 
+functions $g_1(t)$
+for both batches at 20, 40 and 60 $^\circ\mathrm{C}$. At all temperatures, 
+the correlation functions eventually decay to zero after sufficiently 
+long measurement times (up to 10000 s).
+
+\begin{figure}
+\begin{subfigure}[t]{.49\textwidth}
+\includegraphics[width=.99\linewidth]{ABADLS03-normalized-correlations-fit.pdf}
+\end{subfigure}%
+\begin{subfigure}[t]{.49\textwidth}
+\includegraphics[width=.99\linewidth]{Tau-vs-T-from-stretched-exp.pdf}
+\end{subfigure}
+\caption{(a) First-order correlation functions from DLS on 292 mg mL$^{-1}$ solutions of the same triblocks
+at 20 $^\circ\mathrm{C}$ (blue), 40 $^\circ\mathrm{C}$ (orange), and 60 $^\circ\mathrm{C}$ (red). The lines
+are fitted using Equation \ref{eqn:bistrexp}. (b) Characteristic slow and fast relaxation times $\tau_s$ and $\tau_f$ as 
+function of temperature as fitted using Equation \ref{eqn:bistrexp}. The lines are meant as a guide to the eye.
+\label{fig:dls}}
+\end{figure}
+
+All measured correlation functions are well described by a sum of two stretched exponentials
+(Equation \ref{eqn:bistrexp}), and thus their relaxation is characterized by one slow and one 
+fast mean relaxation time $\tau_\mathrm{s}$ and $\tau_\mathrm{f}$. The fits are plotted as 
+solid lines in Figure \ref{fig:dls}a, and the relaxation times are plotted against temperature in 
+Figure \ref{fig:dls}b. A third mode in $g_1(t)$ is also seen, but the acquisition of data of sufficient
+statistics is prohibitively long for samples at high $T$, as is clear from 
+Figure \ref{fig:dls}a. Since its contribution is only minor, it is neglected in the analysis.
+
+The stretch exponents of the fast mode $\alpha_f$ are very close to unity, and the fast 
+modes are thus exponential, and the fast relaxation times are narrowly distributed. Most 
+of the fast relaxations contribute very little to the overall function, and
+only for the 20 $^\circ\mathrm{C}$ TFA-cleaved solution does the fast mode contribute more than
+1\% of the signal.
+ 
+The slow modes exhibit varying degrees of stretching with $\alpha_s$ between 0.76 and 0.95, 
+$\alpha_s$ increasing with temperature. This suggests that the relaxation rates are more narrowly
+distributed for transient networks in which the associators have a higher tendency to stick.
+The dependence of $\tau_s$ mirrors the chemistry-dependent thermothickening observed in viscometry.
+Both the absolute value of $\tau_s$ and their temperature variation mode are strongly affected 
+by the chemistry of the middle block. For the HCl-cleaved NAN, $\tau_s$ is always longer, and
+increases over more than two orders of magnitude. Its TFA-cleaved counterpart has a more
+rapid relaxation of the slow mode, and shows only modest growth with temperature. 
+
+\begin{figure}
+\centering
+\includegraphics[width=.80\linewidth]{Transient_network_d_tau.pdf}
+\caption{Schematic of two snapshots of a cluster of a few chains in a transient network formed 
+by ABA triblock copolymers. Note that in the range studied, temperature and pAA purity do not change 
+the qualitative features of the system: they change only $\tau$, which is the waiting time between 
+the snapshots, and is chosen to be above the node residence time and the decorrelation time of the 
+structure on lengthscales on the order of this box size. The configuration at $t_0$ is drawn in the 
+rightmost figure as dashed lines. $d_\mathrm{node}$ is the characteristic internode distance 
+(\emph{vide infra} for its measurement by SAXS). For clarity, the nodes have been portrayed as 
+stationary. \label{fig:network}}
+\end{figure}
+
+Three-mode stretched exponential relaxation of $g_1(t)$ in DLS measurements of transient polymer
+networks has been previously described by other authors\cite{Bohdan2016, Thuresson1999}, 
+where poly(ethylene glycol) networks were formed by association of aliphatic chains, which 
+were attached to the polymers at either one or both ends, yielding ``diblock'' or ``triblock'' 
+structures. The relaxation 
+times of the second mode increased strongly with increasing proportion of 
+triblock structures (thus increasing network connectivity), and is ascribed to increased 
+node residence times. Thus, this connectivity increase is analogous to a temperature 
+increase in our experiment.
+The $\tau$ of the third mode is reported to show an even stronger connectivity dependence
+\cite{Bohdan2016} and is ascribed to diffusion of associated clusters. 
+
+
+Similarly, we attribute the increase of $\eta$ and $\tau_s$ with temperature
+to a prolongation of the mean residence time of pNIPAm stickers in the nodes, 
+driven by a higher segregation tendency. The collective effect of the increased 
+residence time is a slowing down of the transient network. The wavevector $q$ is 
+$0.019\mathrm{nm}^{-1}$, which means that we 
+are at length scales one order of magnitude beyond the node-node correlations.
+Nonetheless, while $\tau_s$ cannot be trivially converted to a residence time,
+the relaxation time must necessarily increase with residence time.\cite{Bohdan2016} 
+We convey the relaxation of these transient networks in Figure 
+\ref{fig:network} --- one must realize that the temperature and the extent of 
+deprotection determine the $\tau$ over which we would observe relaxation.
+
+
+It is remarkable that the availability of hydrophobic groups \emph{decreases} the residence time, 
+since it could be argued that the hydrophobic effect would be stronger with the participation of such groups, 
+and thus sticker association more prominent. However, we speculate that the residual esters 
+actually improve compatibility between the pNIPAm and the pAA blocks, 
+resulting in \emph{weakening} the physical crosslinks. Additionally, it could 
+be argued that the coils slightly shrink causing them to overlap less. This is 
+consistent with the lower viscosity of the TFA-derived solution at low temperatures,
+and more prominent participation of a fast mode at room temperature.
+
+
+Additional clues for the origin of short sticker residence times for identical pNIPAm moieties
+connected to more strongly hydrophobically contaminated pAA come from SAXS, which 
+reveals time-averaged 
+density fluctuations, thus structural information rather than $\tau$-dependent observables.
+Here, we compare the angle-dependent absolute scattering intensities $\frac{d\Sigma}{d\Omega}(q)$ 
+of 292 mg mL$^{-1}$ solutions of 
+the \emph{tert}-butylated N$_\mathrm{24}$-(A$_\mathrm{297}$-T$_\mathrm{33}$)-N$_\mathrm{24}$ 
+and fully liberated triblocks 
+N$_\mathrm{36}$-A$_\mathrm{220}$-N$_\mathrm{36}$ and 
+N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$ at
+20, 40 and 60 $^\circ\mathrm{C}$. All scattering intensities are peaked in the 
+vicinity of $q^*=$0.03 \AA$^{-1}$, as is
+visible in Figure \ref{fig:saxs}. The peaks sharpen and shift to smaller $q$ with $T$,
+which suggests their origin to be density fluctuations due to increased non-solubility 
+of pNIPAm with a corresponding internode distance $d_\mathrm{node}$.
+Indeed, a change occurs between 20 and 40 $^\circ\mathrm{C}$, in agreement with an 
+LCST of 32$^\circ\mathrm{C}$. We attribute the presence of an internode peak below the 
+LCST to pNIPAm-pNIPAm interactions
+that have been observed in scattering studies of aqueous pNIPAm before \cite{Lang2017}, 
+which note a decrease in excluded 
+volume starting already from 5$^\circ\mathrm{C}$, and a consequent clustering below the 
+LCST.\cite{Kawaguchi2009} 
+
+Upon heating from 20 to 60 $^\circ\mathrm{C}$, the internode distance $d_\mathrm{node}$ that 
+correspond to $q*$, at which $\frac{d\Sigma}{d\Omega}$ passes through a prominent maximum, 
+increases from 18.5 nm to 20.4 nm for N$_\mathrm{36}$-A$_\mathrm{220}$-N$_\mathrm{36}$. Thus,
+the pAA bridges are stretched to approximately twice their diameter of 10 nm, costing
+approximately one $k_BT$ assuming entropic elasticity. For  
+N$_\mathrm{24}$-A$_\mathrm{330}$-N$_\mathrm{24}$ $d_\mathrm{node}$ is between 19.3 nm and 21.9 nm,
+in line with its longer pAA block. In other regards, the six curves for HCl-derived NAN 
+structures are highly similar, suggesting that the qualitative picture in Figure \ref{fig:network}
+is correct for all cases, and that the chemistry and temperature merely causes changes
+in the internode distance and sticker residence time of the transient network.
+
+\begin{figure}
+\centering
+\includegraphics[width=.65\linewidth]{abasax_prcsd_lf37-lf38-ivh-cleaned.pdf}
+\caption{
+X-ray scattering intensity as function of modulus of scattering
+vector $q$ for 292 mg mL$^{-1}$ solutions of one TFA-deprotected and two 
+HCl-deprotected NAN triblock copolymers 
+at 20, 40 and 60 $^\circ\mathrm{C}$ in respectively blue, orange and red (from bottom to top, 
+since the scattering decreases slightly with $T$). The labels $\mathrm{x=}n$ give the scaling factor
+for the curves, used for better readability. The lines are plotted from the full data, while the
+marks are plotted only every sixth point.
+\label{fig:saxs}}
+\end{figure}
+
+The TFA-deprotected N$_\mathrm{24}$-(A$_\mathrm{297}$-T$_\mathrm{33}$)-N$_\mathrm{24}$ 
+shows smaller values of $d_\mathrm{node}$, between 17.6 nm and 19.7 nm, corresponding to a lesser
+stretching of the polyelectrolyte block due to more compatibility with the pNIPAm 
+moieties. A striking feature of the curves is the high-$q$ region, where all curves show power-
+laws of, in the case of
+TFA-derived samples, $q^{-2/3}$, and, in the case of HCl-derived samples, $q^{-5/3}$, the latter 
+corresponding to a self-avoiding walk\cite{DeGennes1979}. We observe these forms up to a 
+$d$ of 1.5 nm, and starting from 5.4 nm for TFA and around 2 nm 
+for the HCl-derived samples, where scattering is dominated by chain statistics ($R_{g}>d>l_k$). 
+
+At present, we have no interpretation of the $q^{-2/3}$ scaling for the TFA-treated case. Clearly,
+it is not reasonable to attribute it to an even further stretching of the chains than we would
+expect for a rod ($q^{-1}$). Thus, the observed shape is likely due to a superposition of different
+dependencies in the high-$q$ scattering. Nonetheless, 
+we stress that the high-$q$ data witness that TFA leaves us with 
+pAA blocks that have strongly altered conformational
+properties with respect to pure pAA blocks.
+Whereas the structure on the internode length scale is only weakly dependent on 
+temperature and chemistry,
+the density fluctuations on the chain length scale are strongly altered by \emph{tert}-butyl 
+moieties incompletely cleaved by TFA.
+
+% or here conclusion?
+Through DLS, rheology and visual observations of NAN triblocks around RT and at
+60 $^\circ\mathrm{C}$, we observe a significant enhancement of sticker residence times 
+of pNIPAm blocks 
+when the \emph{tert}-butyl group is removed completely, whereas association seems to be minimal
+when hydrophobic groups have presence. SAXS reveals internode distances of around twice the
+dilute coil diameter that increase slightly with pAA chain length and absence of 
+hydrophobic groups. More strikingly,
+the density fluctuations on the chain length scales are dramatically different in the 
+case when \emph{tert}-butyl groups are
+not completely removed. Thus, the presence of these groups has a strong effect on the 
+self-assembly behavior of NAN copolymers, 
+which are prepared throughout literature through a method that we show does \emph{not} 
+remove \emph{tert}-butyl up to an 
+extent that their influence is negligible.
+
+\section*{Conclusion}
+In summary, we report a facile, rapid de-\emph{tert}-butylation scheme for the synthesis 
+of pAA block copolymers 
+with pNIPAm from the corresponding copolymer with p\emph{t}BuAc. The action of 
+stoichiometric HCl on a HFIP solution
+of the \emph{tert}-butylated precursor yields pAA blocks of a chemical purity that has been 
+inaccessible \emph{via} the commonly used TFA/DCM mixture. In addition, we show that the 
+presence of residual
+\emph{tert}-butyl moieties, at a degree tolerated by the latter method, impacts the 
+aqueous self-assembly properties 
+of these polymers to such an extent that the thermothickening effect due to LCST-driven 
+pNIPAm association is
+essentially disabled for polymer solutions significantly above overlap. Thus, HCl/HFIP 
+is an essential tool in the
+study of the aqueous association of pAA copolymers derived from their \emph{tert}-butylated 
+precursors.
+
+\section*{Acknowledgements}
+This work was financially supported by the Dutch Science Foundation (NWO VIDI Grant 723.013.005).
+IKV thanks the Dutch Science Foundation (NWO ECHO Grant No. 712.016.002, NWO VIDI Grant 723.014.006) for
+financial support. The authors wish to thank Jasper van der Gucht, Thomas Kodger and Dmitri Filippov
+for their useful comments.
+
+\bibliography{library} %You need to replace "rsc" on this line with the name of your .bib file
+\bibliographystyle{ieeetr} %the RSC's .bst file
+
+
+\end{document}

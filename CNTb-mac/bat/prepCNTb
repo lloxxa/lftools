@@ -1,0 +1,191 @@
+#!/usr/bin/perl
+###########################################
+#	Prepare a set of directories to run CNTb
+#
+# Script will scan recursively subdirectories 
+# and copy INFO_* files 
+# if they contain .ASC files or _ASC directory
+#
+# If one of INFO_* files does not exist in parent directory
+# ask info to create it
+#
+# Syntax : prepCNTb directory
+#
+#	FS last modif 2013/12/05
+###########################################
+
+# check existence of files INFO_* in directory
+# create them if not present
+opendir(DIR,$ARGV[0]) ; @files = readdir(DIR) ; closedir(DIR);
+if (grep(/INFO_C/,@files)) { $ic = 1;} else { &get_INFO_C;} 									
+if (grep(/INFO_F/,@files)) { $if = 1;} else { &get_INFO_F;}
+if (grep(/INFO_P/,@files)) { $ip = 1;} else { &get_INFO_P;}
+
+# change directory and begin recursive copy
+chdir($ARGV[0]);
+&dodir('.');
+
+#################################
+sub dodir {
+	local($currdir) = @_;																	# get file list of current directory
+	opendir(DIR,'.'); local(@dir) = readdir(DIR); closedir(DIR);
+	
+	if (grep(/ASC/ && !/t_o/,@dir)) { 													# contain files or directory with ASC ? do nothing & come back
+		chdir('..');
+	} else {	
+		@dir = grep(!/^\./ && -d,@dir);												# else test which are directories and put them in @files
+		foreach $dir (@dir) {																# in each one copy INFOs further down
+			if ($ic) { system("cp INFO_C $dir/INFO_C");}
+			if ($if) { system("cp INFO_F $dir/INFO_F");}			
+			if ($ip) { system("cp INFO_P $dir/INFO_P");}			
+			chdir($dir) || print "could not change to $currdir/$dir";			# move down in the file hierarchy
+			dodir('.');																			# repeat
+		}
+		if ($ic) { system("rm INFO_C");}												# once all subdirectories explored...
+		if ($if) { system("rm INFO_F");}												# delete INFOs
+		if ($ip) { system("rm INFO_P");}												
+		chdir('..');																				# then move up in the file hierarchy
+	}
+}
+##################################
+# gather info for initial data processing
+sub get_INFO_C {
+	print "INFO for CONTIN\n";	
+	print "First point (sec) ? ";															# first used point
+	chop($tp = <STDIN>);
+	
+	print "Last point (sec) ? ";															# last used point
+	chop($td = <STDIN>);
+	
+	$format = "%0.2e";
+	print "Tau min (sec) ? ";																# lower limit for characteristic times
+	chop($tmin = <STDIN>);
+	$tmin= &format($tmin);
+			
+	print "Tau max (sec) ? ";																# upper limit for characteristic times
+	chop($tmax = <STDIN>);
+	$tmax= &format($tmax);
+	
+	print "Nb of grid points in the distribution ? (default = 100) ";			# number of grid points
+	chop($Ng=<STDIN>);
+	$Ng = "100" if ($Ng eq "");
+	
+	print "Data transformation ( y [def] OR n ) ? ";
+	chop($Trd = <STDIN>);
+	$Trd = ($Trd eq "n" ? "0" : "1");													# convert answer for use as parameter RUSER(10)
+	if ($Trd eq "1" && $ARGV[1] == 2) { $Trd = "1";}								# initial g(2), input sqrt[g(2)-1]
+	if ($Trd eq "1" && $ARGV[1] != 2) { $Trd = "-1";}							# initial g(2)-1, input sqrt[g(2)-1]
+
+	print "Free baseline ( y [def] OR n ) ? ";						
+	chop($Lb = <STDIN>);
+	$Lb = ($Lb eq "n" ? "0" : "1");														# convert answer for use as parameter NLINF
+	
+	print "Weighted residuals ( y OR n [def] ) ? ";
+	chop($Iwt = <STDIN>);
+	$Iwt = ( $Iwt eq "y" ? "5" : "1");													# convert answer for use as parameter IWT
+	&output_INFO_C;	
+}
+##################################
+# output info for batch use
+sub output_INFO_C {
+	open(OUT, ">$ARGV[0]/INFO_C") || die "cannot create $ARGV[0]/TMP_INFO_C\n";
+	print OUT $tp,"\n";
+	print OUT $td,"\n";
+	print OUT $tmin,"\n";
+	print OUT $tmax,"\n";
+	print OUT $Ng,"\n";
+	print OUT $Trd,"\n";
+	print OUT $Lb,"\n";
+	print OUT $Iwt,"\n";
+	close(OUT);
+	$ic = 1;
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form=sprintf $format,abs($f);
+	$form=~s/\.//;
+	$form=~s/e/E/;
+	if ($f>=0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop(@interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+########################################
+# get the input parameters to fit the peaks of the distribution
+sub get_INFO_F {
+	print "No file INFO_F ! Do you want to create one ( y [def] OR n ) ? ";
+	chop($if = <STDIN>);
+	if ( $if eq "n" ) { $if = ""; return;}
+	print "Number of log-normal peaks ?";
+	chop($p = <STDIN>);
+	$i = 1;									
+	print "\nAutomatic initial trial values ( y [def] or n ) ? ";
+	chop($a = <STDIN>);
+	if ($a eq "n") {
+		print "\nEnter initial trial values\n";
+		while ($i<=$p) {
+			print "Peak  $i amplitude ? ";
+			chop($t = <STDIN>);
+			$a[$i] = $t;
+			print "log [peak $i position (s)] ? ";
+			chop($t = <STDIN>);
+			$pos[$i] = $t;
+			print "log [peak $i width] ? ";
+			chop($t = <STDIN>);
+			$lp[$i] = $t;
+			$i++;
+		}
+	}
+	print "Start of fitting region (log) (s) ? ";
+	chop($xmin = <STDIN>);
+	print "End of fitting region (log) (s) ? ";
+	chop($xmax = <STDIN>);
+	&output_INFO_F;
+}
+########################################
+# create INFO_F
+sub output_INFO_F {
+	$i=1;
+	open (OUT,">$ARGV[0]/INFO_F") || die "cannot create $ARGV[0]/INFO_F";
+	print OUT $p,"\n";
+	print OUT $xmin,"\n";
+	print OUT $xmax,"\n";
+	while ($i <= $p) {
+		print OUT qq(a$i=$a[$i]\n);
+		print OUT qq(b$i=$pos[$i]\n);		
+		print OUT qq(c$i=$lp[$i]\n);
+		$i++;
+	}
+	close(OUT);
+	$if = 1;
+}
+########################################
+# get the criteria to discard bad data files
+sub get_INFO_P {
+	print "No file INFO_P ! Do you want to create one ( y [def] OR n ) ? ";
+	chop($ip = <STDIN>);
+	if ( $ip eq "n" ) { $ip = ""; return;}
+	print "Maximum value of deltaI/I ? ";
+	chop($c_dIsI = <STDIN>);
+	print "Maximum value for asymptote ? ";
+	chop($c_asympt = <STDIN>);
+	print "Maximum value for g2(0) – 1 ? ";
+	chop($c_g0 = <STDIN>);
+	&output_INFO_P;
+}
+########################################
+# create INFO_P
+sub output_INFO_P {
+	open (OUT,">$ARGV[0]/INFO_P") || die "cannot create $ARGV[0]/INFO_F";
+	print OUT $c_dIsI,"\n";
+	print OUT $c_asympt,"\n";
+	print OUT $c_g0,"\n";
+	close(OUT);
+	$ip = 1;
+}

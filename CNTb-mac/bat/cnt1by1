@@ -1,0 +1,52 @@
+#!/usr/bin/perl
+###########################################
+# Script for CONTIN processing of relaxation functions
+#
+# Usage: 		cnt1by1 filename
+#
+# Adapted from Rolf Klucker 1995/02
+#
+# last modif FS 2013/06/05
+###########################################
+use FindBin;
+$bat = "$FindBin::Bin";
+($bin = $bat)	=~ s/bat/bin/;
+
+# create useful shell scripts "o","f","r" and "z" in working directory
+`$bat/init "$ARGV[0]" "$ARGV[1]"`;
+
+$sim = 0;
+
+# format data file if necessary and get some data
+if ($ARGV[1] == 0) {  																			# input file already CONTIN-compliant
+	print "Contin direct\n";
+	`$bat/correl "$ARGV[0]" 0`; 															# read CONTIN input file, write TMP_CORREL_INIT
+	
+} elsif ($ARGV[1] == 3) { $sim = 1;															# simulated input file
+	print "Simulating data before formating CONTIN input file\n";
+	system(qq($bat/sim "$ARGV[0]" "$ARGV[2]"));									# interactive system call !!!
+	system(qq($bat/transform "$ARGV[0]" 1));										# format & output (interactive sys call with 2 param !)
+	
+} elsif ($ARGV[1] == 4) { $sim = 1;															# simulated input file, already CONTIN-compliant
+	print "Contin direct on a CONTIN-compatible simulation file\n";
+	`$bat/correl "$ARGV[0]" 0`; 															# read CONTIN input file, write TMP_CORREL_INIT	
+		
+} else {																								# view initial data & build CONTIN-compliant file
+	print "Formating data before CONTIN analysis\n";
+	$lit="`$bat/transform $ARGV[0]`";													# read I(t) & corr. fct (call with single param !)
+	`$bat/visu "$ARGV[0]" "$sim" "$lit"`;												# visualize initial data
+	system(qq($bat/transform "$ARGV[0]" "$ARGV[1]"));						# format & output (interactive sys call with 2 param !)
+}
+
+# run CONTIN, display results & tune parameters
+`$bin/contin <"$ARGV[0]" >"TMP_C"`;													# exec contin on $1, results to TMP_C
+`$bat/correl "$ARGV[0]" 1`;																# write TMP_CORREL
+`$bat/getdistrib`;																				# write TMP_DISTRIB
+`$bat/verify`;																					# write TMP_VERIF
+`gnuplot -e "circ='$sim';path='"."'" $bat/plot`;										# display input and results
+
+print "To...                              Enter...\n";
+print "  refine CONTIN analysis                o\n";									# change CONTIN parameters
+print "  fit the peaks                         f\n";											# fit CONTIN distribution
+print "  rename temporary files                r\n";										# rename temporary files TMP_*.eps to $1_*.eps
+print "  delete temporary files                z\n";										# clean temporary files in working directory

@@ -1,0 +1,141 @@
+#!/usr/bin/perl
+##############################
+#	group .eps plots as small vignettes in pdf file
+#
+#	FS last modif 2014/02/20
+##############################
+
+# check for presence of .eps files
+&file_list("$ARGV[0]");
+@eps = grep(/_eps/, @allfiles);
+unless (@eps) { print "No .eps files to group in $ARGV[0] !\n"; exit;}
+
+# define suffixes of subdirectories to scan
+if ($ARGV[1] eq "p") {																	# only raw data plot
+	@dir = ("_p","_TrI");
+	$init = "I_";
+} else {																						# CONTIN has run
+	@dir = ("_p","_ylog","_TrI","_FIT","_RES","_2e","_cum");							
+	$init = "a_";
+}	
+
+# basic parameters for PostScript description file
+$u = 2.54/72;																				# PostScript unit
+$maximg = 32;																			# maximum number of plots per page
+$llx = 30; $lly = 30; $urx = 600; $ury = 800;									# PostScript Bounding Box (A4)
+$imgw = 14.5; $imgh = 11;																# approximate size of initial image in above BB
+
+# define path and name for aperçu
+@elem = split(/\//,$ARGV[0]);
+$name = pop(@elem);
+$apercu = join('/',/\//,@elem);
+if ($apercu eq "") {
+	$apercu = $init.$name.".pdf";
+} else {
+	$apercu = $apercu."/".$init.$name.".pdf";
+}
+
+# loop on subdirectories
+open(OUT,">$ARGV[0]/apercu.ps") || die "cannot create $ARGV[0]/apercu.ps\n";
+$first = 1;
+
+foreach $suff (@dir) {	
+	# get file names containing "$suff.eps" in subdirectory $suff_eps
+	$path = "$ARGV[0]/$suff"."_eps";
+	&file_list($path) if (-d $path); @files = sort grep (/$suff\.eps/, @allfiles); 
+	next if (!@files);
+	
+	# for the first vignette do scale calculations	
+	if ($first) { &scale;}
+	
+	# loop on files :
+	$page = 1;
+	while ($page <= $npages) {
+		$pl = 0;
+		while ($pl < $pltpp) {
+			if ($file = shift(@files)) {
+				open(IN,"<$path/$file") || die "cannot open $path/$file\n";
+				if ($first) { &write_DSC;}
+				&write_Prolog;
+				&trslt_scl;
+				&write_the_rest;
+				close(IN);
+			}
+			$first = 0; $pl++;
+		}
+		print OUT "showpage\n";
+		print OUT "grestore\n";
+		$page++;
+	}
+}
+
+print OUT '%%Trailer',"\n";
+print OUT '%%DocumentFonts: Monaco Helvetica',"\n";
+close(OUT);
+
+# produce the pdf with either pstopdf or ps2pdf
+$succ = system("pstopdf $ARGV[0]/apercu.ps");
+system("ps2pdf $ARGV[0]/apercu.ps $ARGV[0]/apercu.pdf") if ( $succ eq "-1" );
+system("mv $ARGV[0]/apercu.pdf $apercu");
+system("rm $ARGV[0]/apercu.ps");
+
+########################################
+# calculate scale to fit plots in page
+sub scale {
+	$npages = int(@files/$maximg)+1;				# number of pages
+	$pltpp = int(@files/$npages)+1;					# number of plots per page
+	# calculate scale factor of plots in page
+	$scale = 1;
+	$Nx = int(($urx-$llx)*$u/$scale/$imgw);
+	$Ny = int(($ury-$lly)*$u/$scale/$imgh);
+	
+	while ($Nx*$Ny < $pltpp) {
+		$scale = $scale - 0.025;
+		$Nx = int(($urx-$llx)*$u/$scale/$imgw);
+		$Ny = int(($ury-$lly)*$u/$scale/$imgh);
+	}
+	# calculate vignette size in PostScript units
+	$w = int($imgw/$u*$scale); $h = int($imgh/$u*$scale);
+	$interx = int(($urx-$llx - $Nx*$w)/$Nx);
+	$intery = int(($ury-$lly - $Ny*$h)/$Ny);	
+}
+########################################
+# write Document Structuring Convention (DSC)
+sub write_DSC {
+	print OUT "%!PS-Adobe-2.0\n";
+	print OUT "%%DocumentFonts: (atend)\n";
+	print OUT "%%BoundingBox: $llx $lly $urx $ury\n";
+	print OUT "%%EndComments\n";
+}
+########################################
+# read & write (for first file only) Prolog comments
+sub write_Prolog {
+	$BeginProlog = 0;
+	$EndProlog = 0;
+	while (<IN>) {
+		if (/BeginProlog/) { $BeginProlog = 1};
+		if ($first && $BeginProlog) { print OUT;}
+		if (/EndProlog/) { return;} 
+	}
+}
+########################################
+# translate and scale the plot
+sub trslt_scl {
+	$row = int($pl/$Nx)+1; $col = $pl % $Nx;
+	$x = int($llx + $col*($w+$interx));
+	$y = int($ury - $row*($h+$intery));
+
+	print OUT "\ngsave\n";
+	print OUT "0 -20 translate\n";
+	print OUT "$x $y translate\n";
+	print OUT "$scale $scale scale\n\n";	
+}
+########################################
+sub write_the_rest {
+	while (<IN>) { 
+		if (!/showpage/) { print OUT;} else { print OUT "\ngrestore\n"; return;}
+	}
+}
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

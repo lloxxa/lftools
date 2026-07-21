@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+# Produce new apercu after user selected significant files
+# Statistics are updated but not the average ICF
+# Unused .ASC files have been placed in _discarded subdirectory by user
+#########################################
+#     WARNING : UNUSED OUTPUT FILES ARE DELETED 				#
+#     WORK ON A COPY OF INITIAL DIRECTORY	  						# 
+#		IF YOU WANT TO USE THEM FURTHER									#
+#########################################
+#
+# FS last modif 2013/12/11
+
+use FindBin;
+$bat = "$FindBin::Bin";
+
+$none = `$bat/discard $ARGV[0]`;															# discard unwanted .eps and _fit.txt files
+exit if ( $none eq "1" );
+
+print	`$bat/fitstat $ARGV[0]/_fit_txt`if ( -d "$ARGV[0]/_fit_txt" );		# stats on fit results if meaningful
+
+`$bat/group $ARGV[0] "s"`;																	# make apercu

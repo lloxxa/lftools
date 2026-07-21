@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+##############################################
+# Perl script for CONTIN batch processing of relaxation functions
+#
+# Usage: 		cntb dirname
+#
+# FS last modif 2013/06/05
+##############################################
+use FindBin;
+$bat = "$FindBin::Bin";
+($bin = $bat)	=~ s/bat/bin/;
+
+# check for existence of .ASC and INFO_C files
+$none = `$bat/batch_info $ARGV[0] $ARGV[1]`;								
+exit if ( $none == 1 );																						#  exit if no .ASC files
+system(qq($bat/batch_info $ARGV[0] $ARGV[1] "getinfo")) if ( $none == 2 );		# collect info for batch process if INFO_C not present
+
+`$bat/sum_ASC $ARGV[0]` unless ( $ARGV[3] );												# calculate average correlation function if meaningful
+&file_list("$ARGV[0]"); @files = grep(/\.ASC/, @allfiles);									# get list of all .ASC files
+
+# CONTIN batch on every .ASC file in directory $ARGV[0]
+foreach $file (@files) {																				
+	chop($lit = `$bat/transform $ARGV[0]/$file $ARGV[1]`);								# build CONTIN input file, get avrgd intensity
+	($wf = $file) =~ s/\.ASC//;																			# strip .ASC extension
+	$wf = "$ARGV[0]/$wf";
+	`$bin/contin <$wf >$ARGV[0]/TMP_C`;														# run contin on $wf, results to TMP_C
+	`$bat/correl $wf 1`;																					# write TMP_CORREL
+	`$bat/getdistrib $ARGV[0]`; 																		# write TMP_DISTRIB
+	print `$bat/verify $ARGV[0]`;																	# write TMP_VERIF
+	`$bat/visu "$ARGV[0]/$file" "2" "$lit"`;														# plot trace of intensity
+	`gnuplot -e "set loadpath '$ARGV[0]'" $bat/plot`;											# plot input data and results
+	`$bat/fit "$ARGV[0]" "$lit"` if ( $ARGV[2] );		    									# fit distribution if third input param 
+	`$bat/rename $wf`;																					# rename TMP_*.eps files, delete all other TMP_*
+}
+
+print `$bat/fitstat $ARGV[0]` if ( $ARGV[2] );												# stats on fit results if meaningful
+
+`$bat/clean $ARGV[0] $ARGV[1]`;																	# sort output files
+`$bat/group $ARGV[0] $ARGV[1]`;																	# make apercu
+
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

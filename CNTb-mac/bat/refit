@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+# Perl script for batch fitting distributions
+# FS last modif 2013/12/11
+
+use FindBin;
+$bat = "$FindBin::Bin";
+
+&file_list("$ARGV[0]/\_d\_txt"); @files = grep(/\_d\.txt/, @allfiles);		# get list of all .txt files
+
+foreach $file (@files) {																			# batch fitting on every distribution in $ARGV[0]/_d_txt
+	($wf = $file) =~ s/_d.txt//;																	# strip _d.txt from file name
+	$lit = "`$bat/read $ARGV[0]/_ASC/$wf.ASC`";									# read ALV input file, get avrgd intensity 
+	`cp "$ARGV[0]/_d_txt/$file" "$ARGV[0]/TMP_DISTRIB"`;					# copy saved distribution file to working file
+	`$bat/getdistribrefit $ARGV[0]`;														# retrieve stored distribution values
+	print `$bat/fit $ARGV[0] "$lit"`;														# fit again
+	`$bat/rename $ARGV[0]/$wf`;															# rename TMP_*.eps files, delete all other TMP_*
+}
+
+print `$bat/fitstat $ARGV[0]`;																# stats on fit results
+`$bat/clean $ARGV[0] "r"`;																	# sort output plot files
+`$bat/group $ARGV[0] "r"`;																	# make apercu
+
+############################################
+# get all files in directory
+sub file_list { local($dir) = @_; opendir(DIR,$dir) ; @allfiles = readdir(DIR) ; closedir(DIR);}

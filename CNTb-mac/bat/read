@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+############################################
+#	This routine reads the ALV files
+#
+#	Usage: read $1
+#
+#	where $1 is the directory containing the .ASC files
+#
+#	sub read_file depends on the initial data format!!
+#	HERE initial data are g(2)-1 obtained with ALV-5000 and ALV-7002:
+#
+#	FS last modif 2013/05/10
+############################################
+
+$source_file=$ARGV[0];
+&read_file;
+$label="Iav : ".sprintf("%1.2e",$Im)." +/- ".sprintf("%1.2e",$dIm)."\n";
+print $label;
+
+####################################
+# read ASCII file saved by software on ALV-5000 and ALV-7002
+# extension .ASC added automatically
+# data are t, g(2)(t)-1
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ######  DO NOT ALTER THE ORDER OF THE VARIOUS TESTS !!!   #########
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sub read_file {
+	open(FILE_IN, "<$source_file") || die "cannot open $source_file ! ";		
+	$output = $i = $j = 0;
+	@t = @y = @tT = @yT =();
+	while (<FILE_IN>) {
+#		print;
+		s/\r//g; s/\n//g;																	# Windows LF + CR !! 
+		if (/Temp/) {	# temperature
+			@item = split(/ [ ]*/);
+			$TEMP = @item[$#item];}
+
+		if (/Ang/) {	# angle
+			@item = split(/ [ ]*/);
+			$ANG = @item[$#item];}
+
+		if (/Visc/) {	# viscosity
+			@item = split(/ [ ]*/);
+			$VISC = @item[$#item];}
+
+		if (/Refr/) {	# refractive index
+			@item = split(/ [ ]*/);
+			$INDX = @item[$#item];}
+
+		if (/Wave/) {	# wavelength
+			@item = split(/ [ ]*/);
+			$WAVE = @item[$#item];}
+
+		if (/Duration/) {	# duration
+			@item = split(/ [ ]*/);
+			$DUR = @item[$#item];}
+
+		if (/Rate/) {	# mean count rate
+			$output = 2;} # end of correlation data block, begin of intensity trace
+			
+		if (/Diode/) {	# diode monitor
+			@item = split(/ [ ]*/);
+			$MON = @item[$#item];
+			$output = 3;} # end of intensity data block
+
+		if ($output == 1) {	# inside data block
+			$format="%0.6e";					# format imposed by CONTIN 
+			@item = split(/ [ ]*/);				# @item = {time,g(2)-1)}
+			if ($item[1]) {
+				$t[$i] = &format($item[1]/1000); 		# convert ms to s, then FORTRAN notation
+				if (@ARGV[1]==2) {$item[2]+=1;}	# back to g(2)(t) ! 
+				$y[$i] = &format($item[2]);
+				$npt=$i;
+			}									# count nb of rows
+			$i += 1;}
+			
+		if ($output == 2) {	#	inside intensity trace data
+			@item = split(/ [ ]*/);
+			if ($item[2]) {
+				$tT[$j]=$item[1];
+				$yT[$j]=$item[2];
+				$j+=1;
+			}
+		}
+		
+		if (/Cor/) {$output = 1;}	# begin of data block
+	}
+ 	close(FILE_IN);
+ 	
+ 	# check reading
+# 	$i = 0;
+#	while ($i <= $#yT) {
+# 		$label=sprintf("%1.2d",$i)." : ".sprintf("%1.5e",$tT[$i])." , ".sprintf("%1.5e",$yT[$i])."\n";
+# 		print $label;
+# 		$i++;
+#	}
+
+ 	# calculate average intensity and standard deviation :
+ 	$i = $Im = 0;
+	while ($i <= $#yT) {
+		$Im += $yT[$i];
+		$i++;
+	}
+	$Im = $Im/$i;
+	$i = $dIm = 0;
+	while ($i <= $#yT) {
+		$dIm += ($yT[$i]-$Im)**2;
+		$pr=$yT[$i];
+		$label=sprintf("%1.2d",$i)." : ".sprintf("%1.5e",$yT[$i])." , ".sprintf("%1.5e",$yT[$i]-$Im)."\n";
+#		print $label;
+		$i++;
+	}
+	$dIm=sqrt($dIm/$i);
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form=sprintf $format,abs($f);
+	$form=~s/\.//;
+	$form=~s/e/E/;
+	if ($f>=0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop($interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+
+

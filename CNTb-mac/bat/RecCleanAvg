@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+####################
+#	Recursively clean all files linked to averaged data files 
+#
+#	FS last modif 2013/12/09
+####################
+
+chdir($ARGV[0]);
+&dodir('.');
+print `cnt $ARGV[0] s`;										# select results afterwards
+
+#################################
+sub dodir {
+	local($currdir) = @_;
+	# get dir list of current directories
+	opendir(DIR,'.'); local(@dirs) = readdir(DIR); closedir(DIR);
+	@dirs = grep(!/^\./ && ( -d "./$_"), @dirs);
+
+	foreach $dir (@dirs) {										# for each directory
+		if ( -d "./$dir/_ASC" ) {								# if it contains _ASC directory
+			`rm -f ./$dir/_ASC/avrg_$dir.ASC`;		# delete files associated with an average
+			`rm -f ./$dir/warning`;
+			`rm -f ./$dir.txt`;
+		} else {														# else explore one level deeper
+			chdir($dir) || print "could not change to $currdir/$dir";
+			dodir('.');
+		}
+	}
+	chdir('..');														# after that back one level higher
+}

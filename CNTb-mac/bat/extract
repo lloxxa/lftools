@@ -1,0 +1,93 @@
+#!/usr/bin/perl
+####################
+#	extract info from statistics files .txt
+#
+#	FS last modif 2013/06/11
+####################
+
+# obtain list of interesting .txt files
+$path_i=$ARGV[0];
+opendir(DIR,$path_i);
+@files = sort grep (/\.txt/ && !/final/, readdir(DIR)); 
+closedir(DIR);
+if (@files == 0) {exit;}
+
+# get & format results from each .txt result file
+$Nf = 0;
+foreach $file (@files) {
+	&get;																																		# get data set
+	$Npic = ($OK ? @R/2 : @R/1);																									# Npic updated for each set
+ 	if ($Nf == 0) { &headers;}																										# if 1st set, make headers
+	$Nf++;
+	&msf;																																	# format data for output
+}
+
+# output aggregated result file
+open(OUT,">$path_i"."_final.txt") || die "cannot open $path_i/$path_i_final.txt for output";
+for ($i = 0; $i <= $Nf; $i++) {
+	print OUT $Rs[$i],"\n";
+}
+close OUT;
+####################
+# get results
+sub get {
+	open(IN,"<$path_i/$file") || die "cannot open file $path_i/$file for input\n";
+	@B = @dB = @G = @dG = @I = @dI = @R = @dR = @A = (@dA = ());
+	while (<IN>) {
+		if (/file set/) { $fileset = 1; $OK = 1;}
+		if (/Inconsistent/) { $fileset = 0; $OK = 0;}
+		if (/correlation function/) { $fileset = 0;}
+		if (/Position \[nm\]/) {
+			chop; @res = split(/ /);	push(@R,$res[3]);
+			if ($fileset) { push(@dR,$res[5]);}
+		}
+		if (/Relative area/) {
+			chop; @res = split(/ /); push(@A,$res[3]);
+			if ($fileset) { push(@dA,$res[5]);}
+		}
+		if (/Intensity/ && !/fluctuations/) {
+			chop; @res = split(/ /); push(@I,$res[2]); push(@dI,$res[4]);
+		}
+		if (/^g/) {
+			chop; @res = split(/ /);	push(@G,$res[2]);
+			if ($fileset) { push(@dG,$res[4]);}
+		}
+		if (/Asymptote/) {
+			chop; @res = split(/ /); push(@B,$res[2]);
+			if ($fileset) { push(@dB,$res[4]);}
+		}
+	}
+	close (IN);	
+}
+####################
+# format line of results
+sub msf {
+	if (!$OK) {																																# compensate for missing results
+		for ($j = 1; $j <= $Npic; $j++) {
+			unshift(@R,0); unshift(@dR,0);
+			unshift(@A,0); unshift(@dA,0);
+			unshift(@G,0); unshift(@dG,0);
+			unshift(@B,0); unshift(@dB,0);
+		} 
+	}
+	@T = ($file,@I,@dI);
+	@I = ();
+	for ($i = 0 ; $i < $Npic ; $i++) {
+		@I = (@I,sprintf("%1.2e",$A[$i+$Npic]*$T[1]),sprintf("%1.2e",($dA[$i]/$A[$i+$Npic]+$T[2]/$T[1])*$T[1]),sprintf("%1.2e",$A[$i]*$T[1]));
+		@T = (@T,$A[$i+$Npic],$dA[$i],$A[$i],$R[$i+$Npic],$dR[$i],$R[$i]);
+	}
+	@T = (@T,@I,$G[0],$dG[0],$G[1],$B[0],$dB[0],$B[1]);
+	$Rs[$Nf] = join("\t",@T);																										# produce row of results
+}
+####################
+# make column headers
+sub headers {
+	@headers=("filename","Im","dIm");
+	@headI= ();
+	for ($i = 1 ; $i <= $Npic ; $i++) {
+		@headI = (@headI,"I".$i." typ","dI".$i,"<I".$i.">");
+		@headers = (@headers,"a".$i." typ","da".$i,"<a".$i.">","b".$i." typ","db".$i,"<b".$i.">");
+	}
+	@headers = (@headers,@headI,"g0 typ","dg0","<g0>","asympt. typ","d asympt.","<asympt.>");
+	$Rs[0] = join("\t",@headers);
+}

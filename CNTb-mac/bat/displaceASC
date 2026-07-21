@@ -1,0 +1,14 @@
+#!/usr/bin/perl
+#################################
+#	Displace unwanted ASC files from _ASC to _discarded subdirectories
+#
+#	FS 2013/10/21
+#################################
+
+open(IN, "<$ARGV[0]/TMP_disc");
+while (<IN>) {
+	chop();
+	`mv "$ARGV[0]/_ASC/$_"  "$ARGV[0]/_discarded/$_"`;
+}
+close(IN);
+`rm -f "$ARGV[0]/TMP_disc"`;

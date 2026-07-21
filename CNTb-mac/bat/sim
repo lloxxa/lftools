@@ -1,0 +1,278 @@
+#!/usr/bin/perl
+#######################################
+#	Simulate experimental data for CONTIN analysis 
+#   Noise picked randomly in the interval [-sigma,+sigma]
+#	with sigma = (1+y^2)/4/B/y^2 
+#	output 2 columns t, g(2)-1=y^2 for gnuplot
+#	Headers and intensity trace are mimicked as in ALV file
+#
+#   FS last modif 2013/05/30
+#######################################
+
+#@t[0]=0;@y[0]=0;@ordinate[0]=0;@abscissa[0]=0;@a[0]=0;@pos[0]=0;@lp[0]=0;
+&infos;				# get the parameters for the input distribution
+&calc_distr;		# calculate original distribution
+&time_base;		# calculate ALV 5000 time base
+&calc_y;				# recalculate smoothed data curve from input distribution
+&randomize;		# introduce random noise
+&output;			# create data file for gnuplot
+&plotsim;			# create gnuplot file
+`gnuplot plot`;	# run it
+ `rm plot`;			# delete it 
+&output_asc;		# output ALV-like file
+
+####################################
+# get the parameters for the input distribution
+sub infos {
+	print "Number of log-normal peaks ? (return to skip) ";
+	chop($p = <STDIN>);
+	if ( $p == "") {	# convenient exit if a similar file exists already
+		open(IN,"<distr_param") || die "cannot open distr_param !\n";
+		$i=1;
+		chop($Ag = <IN>);
+		while (<IN>) {
+			chop;
+			($a[$i], $pos[$i], $lp[$i]) = split(/\t/);
+			$i++;
+		}
+		$p= $#a;
+		close(IN);
+		
+	} else {			# enter parameters manually
+		$i = 1;
+		print "\nEnter parameters values \n";
+		print "Amplitude g1(t) ? ";
+		chop($Ag = <STDIN>);
+		while ($i <= $p) {
+			print "Peak amplitude ",$i," ? ";
+			chop($t = <STDIN>);
+			$a[$i] = $t;
+			print "log [peak position ",$i,"] ? ";
+			chop($t = <STDIN>);
+			$pos[$i] = $t;
+			print "log [peak width ",$i,"] ? ";
+			chop($t = <STDIN>);
+			$lp[$i] = $t;
+			$i++;
+		}
+		open(OUT,">distr_param")|| die "cannot open distr_param !\n";
+		$i=1;
+		print OUT $Ag,"\n";
+		while ($i <= $p) {
+			print OUT $a[$i],"\t", $pos[$i],"\t", $lp[$i],"\n";
+			$i++;
+		}
+		close(OUT);
+	}
+}
+####################################
+# calculate original distribution
+sub calc_distr {
+	$l10=log(10);
+	$format="%0.8e";
+	
+	#	find limits of calculus :
+	$i=1; $xmin = $pos[1]; $xmax = $pos[$#pos]; $lmax=0;
+	while ($i<=$p) {
+		$xmin=($xmin < $pos[$i] ? $xmin : $pos[$i]);
+		$xmax=($xmax > $pos[$i] ? $xmax : $pos[$i]);
+		$lmax=($lmax > $lp[$i] ? $lmax : $lp[$i]);
+		$i++;
+	}
+	$lmax=10**sqrt(10*$lmax);
+	$xmin=10**$xmin/$lmax; $xmax=10**$xmax*$lmax;
+
+	#	calculate distribution :
+	$i=1;$x=$xmin;
+	while ($x<=$xmax) {
+		$j=1;
+		while ($j <= $p) {
+			$ordinate[$i] = $ordinate[$i] + $a[$j]*exp(-(log($x)/$l10 - $pos[$j])**2/$lp[$j]);
+			$j++;
+		}
+		$abscissa[$i]= $x;
+		$x=$x*1.1;
+		$i++;
+	}
+	
+	#	normalize distribution / g(1)(t=0)=$Ag :
+	$i=1; $cum=0;
+	while ($i <= $#ordinate) {
+		$cum= $cum + $ordinate[$i];
+		$i++;
+	}
+	$i=1;
+	while ($i <= $#ordinate) {
+		$ordinate[$i] = $ordinate[$i]/$cum*$Ag;
+		$i++;
+	}
+
+	#	output distribution	:
+	open(OUT, ">distr")|| die "cannot open distr !\n";
+	$i=1;
+	while ($i <= $#ordinate) {
+		print OUT $i,"\t", &format($abscissa[$i]),"\t ", &format($ordinate[$i]),"\n";
+		$i++;
+	}
+	close(OUT);
+	
+	#	output distribution	normalized to area unity :
+	$dtau = (log($abscissa[$#abscissa]) - log($xmin))/$l10/($#abscissa-1);
+	open(OUT, ">distr_n")|| die "cannot open distr_n !\n";
+	$i=1;
+	while ($i <= $#ordinate) {
+		print OUT $i,"\t", &format($abscissa[$i]),"\t ", &format($ordinate[$i]/$Ag/$dtau),"\n";
+		$i++;
+	}		
+	close(OUT);
+}
+####################################
+# calculate ALV 5000 time base 
+sub time_base {
+	$const = 0.4;
+	$i = 0;
+	while ($i++ < 16) {
+		$t[$i] = $i/5e6;
+	}
+	$j = 0;
+	while ($j < 30) {
+		$k = 0;
+		while ($k++ < 8) {
+			$i = 16 + $k + 8*$j;
+			$t[$i] = (3.2 + $k * $const) * 2**$j * 1e-6;
+		} 
+		$j++;
+	}
+}
+####################################
+# recalculate smoothed data curve from distribution data
+sub calc_y {
+	$j = 0; $k = 0;
+	while ($j++ < $#t) {
+		$i = 0;
+		while ($i++ < $#ordinate) {
+			$y[$j] += $ordinate[$i] * exp( -$t[$j] / $abscissa[$i] );
+		}
+		if ( $y[$j] >= 2*$y[1]/(4*$ARGV[1])**(1/3) ) { $k++;}
+	}
+#	print "ylim= ",$y[1]/(4*$ARGV[1])**(1/3)," #t= ",$#t,", #y= ",$k,"\n";	
+}
+####################################
+# introduce random noise
+sub randomize {
+	$i = 1;
+	srand(1);
+	$b = $ARGV[1];
+	print "B= ",$b,"\n";
+	while ($i <= $k) {
+		$sigma=(1 + $y[$i]**2)/4/$b/$y[$i]**2;
+#		print "# ",$i,"  y= ",$y[$i]," sig= ",$sigma,"\n";
+#		$sigma=($sigma < $y[$i] ? $sigma : $y[$i]);
+		$y[$i] = ($y[$i] + $sigma*2*(rand(1)-.5))**2;
+		$i++;
+	}
+	while ($i <= $#t) {
+		$temp = $y[$i] + $sigma*2*(rand(1)-.5)*($t[$k]/$t[$i])**(0.25);
+		$y[$i] = ($temp > 0 ? $temp**2 : - $temp**2);
+		$i++;
+	}	
+}
+####################################
+# file for gnuplot
+sub output {		
+	open(OUT, ">$ARGV[0]") || die "cannot open file $ARGV[0] for output !\n";
+	$i = 1;
+#	while ($i <= $k) {
+	while ($i <= $#t) {
+		$t[$i] =~ s/e/E/;
+		$y[$i] =~ s/e/E/;
+		print OUT "  ", $t[$i],"\t  ", $y[$i],"\n";
+		$i++;
+	}
+	close(OUT);
+}
+####################################
+# output ALV-like file
+sub output_asc {		
+	open(OUT, ">$ARGV[0].ASC") || die "cannot open .ASC file for output ! ";
+	print OUT "Simulation Data : B= ",$b,"\n";
+	print OUT "# peaks     : ",$p,"\n";
+	print OUT "ampl g(1)(t): ",$Ag,"\n";
+	print OUT "ampl(1)     : ",$a[1],"\n";
+	print OUT "pos(1)	    : ",$pos[1],"\n";
+	print OUT "width(1)     : ",$lp[1],"\n";
+	print OUT "ampl(2)     : ",$a[2],"\n";
+	print OUT "pos(2)	    : ",$pos[2],"\n";
+	print OUT "width(2)     : ",$lp[2],"\n";
+	print OUT "ampl(3)     : ",$a[3],"\n";
+	print OUT "pos(3)	    : ",$pos[3],"\n";
+	print OUT "width(3)     : ",$lp[3],"\n";
+	print OUT "ampl(4)     : ",$a[4],"\n";
+	print OUT "pos(4)	    : ",$pos[4],"\n";
+	print OUT "width(4)     : ",$lp[4],"\n";
+	print OUT "Temperature [K] :	     295.27479","\n";
+	print OUT "Viscosity [cp]  :	       0.95184","\n";
+	print OUT "Refractive Index:	       1.33200","\n";
+	print OUT "Wavelength [nm] :	     632.80000","\n";
+	print OUT "Angle [°]       :	      90.00000","\n";
+	print OUT "Duration [s]    :	        0","\n";								# Duration = 0 signals simulation data
+	print OUT "Mode            :	        N/A","\n";
+	print OUT "MeanCR0 [kHz]   :	        N/A","\n";
+	print OUT "MeanCR1 [kHz]   :	        N/A","\n\n";
+	print OUT "Correlation","\n";
+
+	$i=1;
+	while ($i<=$#t) {
+		print OUT "  ",1000*$t[$i],"\t  ",$y[$i],"\n";
+		$i++;
+	}
+	print OUT "\nCount Rate","\n";
+	print OUT "       0.23438	      11.10157","\n";
+	print OUT "       0.46875	      10.89670","\n";
+	print OUT "       0.70313	      11.29791","\n";
+	print OUT "       0.93750	      10.75585","\n";
+	print OUT "       1.17188	      10.61926","\n";
+	print OUT "       1.40625	      10.85401","\n";
+	print OUT "       1.64063	      11.05462","\n";
+	print OUT "       1.87500	      10.11988","\n";
+	print OUT "       2.10938	      10.69609","\n";
+
+	close(OUT);
+}
+####################################
+# translate number to a FORTRAN form (-).xxxE+xx
+sub format {
+	$f=10*shift(@_);
+	$form = sprintf $format, abs($f);
+	$form =~ s/\.//;
+	$form =~ s/e/E/;
+	if ($f >= 0) {
+		$form= ".".$form;
+	} else {
+		@interm=split(E,$form);
+		chop($interm[0]);	
+		$form="-.".join(E,@interm);
+	}
+	$form;
+}
+####################################
+# create gnuplot file to display simulated data with noise
+sub plotsim {
+	open(OUT,">plot") || die "cannot open plot for output";
+	print OUT qq(set termoption enhanced\n);
+	print OUT qq(set sample 512\n);
+	print OUT qq(set logscale x\n);
+	print OUT qq(set xtics 10 format "10^{%T}" nomirror\n);
+	print OUT qq(unset mxtics\n);
+	print OUT qq(set logscale y\n);
+	print OUT qq(set ytics 10 format "10^{%T}" nomirror\n);
+	print OUT qq(unset mytics\n);
+	print OUT qq(set xrange [1e-7:1e2]\n);
+	print OUT qq(set yrange [1e-5:1]\n);
+	print OUT qq(set xlabel "t (s)" font "Helvetica,24"\n);
+	print OUT qq(set ylabel "Y(t)" font "Helvetica,24" offset 0,0\n);
+	print OUT qq(plot "$ARGV[0]" using 1:2 pt 7 ps 1.5\n);
+	print OUT qq(pause mouse any\n);
+	close OUT;
+}
+
